@@ -1,0 +1,70 @@
+[versions]
+agp = "8.13.0"
+kotlin = "2.0.21"
+coreKtx = "1.10.1"
+junit = "4.13.2"
+junitVersion = "1.1.5"
+espressoCore = "3.5.1"
+appcompat = "1.6.1"
+material = "1.10.0"
+constraintlayout = "2.1.4"
+lifecycleLivedataKtx = "2.6.1"
+lifecycleViewmodelKtx = "2.6.1"
+navigationFragmentKtx = "2.6.0"
+navigationUiKtx = "2.6.0"
+springFramework = "6.1.4"
+springWeb = "6.1.4"
+hibernate = "6.4.4.Final"
+jakartaServlet = "6.0.0"
+jakartaPersistence = "3.1.0"
+jdbcMysql = "8.0.32"
+hikaricp = "5.1.0"
+jjwt = "0.12.3"
+jackson = "2.17.0"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+androidx-lifecycle-livedata-ktx = { group = "androidx.lifecycle", name = "lifecycle-livedata-ktx", version.ref = "lifecycleLivedataKtx" }
+androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycleViewmodelKtx" }
+androidx-navigation-fragment-ktx = { group = "androidx.navigation", name = "navigation-fragment-ktx", version.ref = "navigationFragmentKtx" }
+androidx-navigation-ui-ktx = { group = "androidx.navigation", name = "navigation-ui-ktx", version.ref = "navigationUiKtx" }
+
+# Spring Framework
+spring-framework-web = { group = "org.springframework", name = "spring-web", version.ref = "springWeb" }
+spring-framework-core = { group = "org.springframework", name = "spring-core", version.ref = "springFramework" }
+spring-framework-context = { group = "org.springframework", name = "spring-context", version.ref = "springFramework" }
+spring-framework-orm = { group = "org.springframework", name = "spring-orm", version.ref = "springFramework" }
+
+# Hibernate
+hibernate-core = { group = "org.hibernate.orm", name = "hibernate-core", version.ref = "hibernate" }
+
+# Jakarta Servlet API
+jakarta-servlet-api = { group = "jakarta.servlet", name = "jakarta.servlet-api", version.ref = "jakartaServlet" }
+
+# Jakarta Persistence
+jakarta-persistence-api = { group = "jakarta.persistence", name = "jakarta.persistence-api", version.ref = "jakartaPersistence" }
+
+# MySQL Driver
+mysql-connector-java = { group = "com.mysql", name = "mysql-connector-java", version.ref = "jdbcMysql" }
+
+# HikariCP
+hikaricp = { group = "com.zaxxer", name = "HikariCP", version.ref = "hikaricp" }
+
+# JJWT for JWT
+jjwt-api = { group = "io.jsonwebtoken", name = "jjwt-api", version.ref = "jjwt" }
+jjwt-impl = { group = "io.jsonwebtoken", name = "jjwt-impl", version.ref = "jjwt" }
+jjwt-jackson = { group = "io.jsonwebtoken", name = "jjwt-jackson", version.ref = "jjwt" }
+
+# Jackson
+jackson-databind = { group = "com.fasterxml.jackson.core", name = "jackson-databind", version.ref = "jackson" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+
