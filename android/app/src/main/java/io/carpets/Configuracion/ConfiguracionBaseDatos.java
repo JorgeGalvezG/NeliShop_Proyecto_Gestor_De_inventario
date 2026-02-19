@@ -5,6 +5,9 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import io.carpets.Credenciales;
 
+import java.sql.Timestamp;
+
+
 
 public class ConfiguracionBaseDatos {
 
@@ -30,6 +33,8 @@ public class ConfiguracionBaseDatos {
         }
         return connection;
     }
+    //necesitamos crear un time stamp dentro de las consultas para hacer el poryecto mas escalable y poderle sacar
+    //provecho a las actualizaciones dinamicas
 
     // Cerrar conexión
     public static void cerrarConexion() {

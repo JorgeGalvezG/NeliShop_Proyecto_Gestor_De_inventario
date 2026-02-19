@@ -1,12 +1,11 @@
 class Report {
   final String id;
-  final String productName; // Será "Venta #X"
+  final String productName; // Numero de boleta
   final int quantity;
+  final double total;
   final double subtotal;
   final double igv;
-  final double total;
   final DateTime date;
-
   //Campo para los detalles
   final List<dynamic> detalles;
 

@@ -118,10 +118,25 @@ class BridgeFlutter {
       return BridgeResponse(status: 'error', mensaje: e.toString());
     }
   }
-
-  Future<JsonList> listarVentas() async {
+//solo devuelve un jsonlist en vez de un mapa
+ /* Future<JsonList> listarVentas() async {
     final result = await _invoke<JsonList>(_channelVenta, AppConstants.methodListVentas, []);
     return result ?? [];
+  } */
+  //trabajando
+  Future<BridgeResponse> listarVentas() async {
+    try {
+      final result = await _channelVenta.invokeMethod(AppConstants.methodListVentas, []);
+
+      if (result is Map) {
+        return BridgeResponse.fromMap(result);
+      }
+      // Si Java devuelve null o algo raro
+      return BridgeResponse(status: 'error', mensaje: 'Formato de respuesta inválido');
+
+    } catch (e) {
+      return BridgeResponse(status: 'error', mensaje: e.toString());
+    }
   }
 
   // -------- COMPRAS --------

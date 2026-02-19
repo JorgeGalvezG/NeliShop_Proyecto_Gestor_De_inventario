@@ -1,7 +1,7 @@
 package io.carpets;
 
-import android.os.Bundle; // ✅ Import necesario
-import android.os.StrictMode; // ✅ Import necesario
+import android.os.Bundle;
+import android.os.StrictMode;
 import androidx.annotation.NonNull;
 
 import java.util.List;

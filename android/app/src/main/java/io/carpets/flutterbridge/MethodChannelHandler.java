@@ -1,16 +1,22 @@
 package io.carpets.flutterbridge;
 
+import java.sql.Connection;
 import io.carpets.entidades.*;
 import io.carpets.servicios.*;
+import java.sql.PreparedStatement;
 import io.carpets.servicios.implementacion.*;
 import io.carpets.DTOs.BoletaVentaDTO;
 import io.carpets.DTOs.MontosCalculados;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import io.carpets.Configuracion.ConfiguracionBaseDatos;
 
 public class MethodChannelHandler {
 
@@ -24,7 +30,9 @@ public class MethodChannelHandler {
     // SECCIÓN 1: AUTENTICACIÓN (LOGIN)
     // ========================================================================
 
-    public Map<String, Object> login(String dni, String password) {
+
+    //metodo sin capacidad ni cifrado
+    /* public Map<String, Object> login(String dni, String password) {
         Usuario u = usuarioService.login(dni, password);
         if (u != null) {
             Map<String, Object> response = new HashMap<>();
@@ -38,6 +46,56 @@ public class MethodChannelHandler {
         error.put("status", "error");
         error.put("mensaje", "Credenciales inválidas");
         return error;
+    } */
+    //metodo cambiado y cifrando para evitar vulneraciones
+
+    public Map<String, Object> login(String dni, String password) {
+        Map<String, Object> response = new HashMap<>();
+        Connection conn = null;
+        PreparedStatement pst = null;
+        ResultSet rs = null;
+        try {
+            conn = ConfiguracionBaseDatos.getConnection();
+            // Construir la consulta SQL con la contraseña cifrada
+            String sql = "SELECT * FROM usuarios WHERE dni = ? AND password = ?";
+            //preparacion de la consulta a la bd
+            pst = conn.prepareStatement(sql);
+            //rellenamos datos de forma segura
+            pst.setString(1, dni); //el primer "hueco" es el dni
+            pst.setString(2, password); //el segundo "hueco" es la contraseña cifrada
+
+            //ejecutamos
+            rs = pst.executeQuery();
+
+            if (rs.next()) {
+                response.put("status", "ok");
+                response.put("mensaje", "Bienvendio" + rs.getString("nombre"));
+
+                //guardamos datos utiles para flutter
+                response.put("id", rs.getInt("id"));
+                response.put("rol", rs.getString("rol")); // 'admin' o 'vendedor'
+                response.put("nombre", rs.getString("nombre"));
+            } else {
+                // Credenciales incorrectas
+                response.put("status", "error");
+                response.put("mensaje", "Usuario o contraseña incorrectos");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.put("status", "error");
+            response.put("mensaje", "Error de base de datos: " + e.getMessage());
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (pst != null) pst.close();
+                //no sse cierra conn por si se hace uso de un pool compartido
+                //si se abre una por consulta; solo descomentar la siguiente linea de codigo:
+                //if (conn != null) conn.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        return response;
     }
 
     // ========================================================================

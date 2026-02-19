@@ -13,7 +13,8 @@ configurations.all {
 }
 
 android {
-    namespace = "com.example.final_solution"
+    //namespace = "com.example.final_solution"
+    namespace = "io.carpets"
     compileSdk = 36
 
 
@@ -28,7 +29,8 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.final_solution"
+        //applicationId = "com.example.final_solution"
+        applicationId = "io.carpets"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
@@ -89,6 +91,7 @@ dependencies {
 
     //Driver JDBC
     implementation("mysql:mysql-connector-java:5.1.49")
+
 }
 flutter {
     source = "../.."
