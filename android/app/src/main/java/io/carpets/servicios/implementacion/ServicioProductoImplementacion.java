@@ -27,6 +27,10 @@ public class ServicioProductoImplementacion implements ServicioProducto {
         return repo.getGananciaTotal();
     }
 
+    /**
+     * Lista todos los productos
+     * @return Lista de productos
+     */
     @Override
     public List<Producto> obtenerTodos() {
         return repo.findAll();

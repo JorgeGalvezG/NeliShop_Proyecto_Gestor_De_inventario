@@ -268,6 +268,13 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
     }
 
     // Método auxiliar para mapear ResultSet a Objeto
+
+    /**
+     * Recopila los datos de ResultSet y los convierte a un objeto Producto
+     * @param rs Es el set de datos de un producto
+     * @return retorna el objeto Producto con los datos obtenidos de la bd.
+     * @throws SQLException
+     */
     private Producto mapearProducto(ResultSet rs) throws SQLException {
         Producto p = new Producto();
         p.setId(rs.getInt("idproducto"));

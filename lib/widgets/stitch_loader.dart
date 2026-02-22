@@ -12,6 +12,9 @@ class StitchLoader extends StatelessWidget {
     this.color,              // Color opcional (si no, usa el del tema)
   });
 
+  /**
+   * Es el circulito de "Cargando..."
+   */
   @override
   Widget build(BuildContext context) {
     return Center(

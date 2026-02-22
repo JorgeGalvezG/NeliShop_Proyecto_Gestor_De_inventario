@@ -6,7 +6,14 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import io.carpets.flutterbridge.MethodChannelHandler;
 
+/**
+ * Esta clase es el puente principal del MethodChannel.
+ * Es el principal debido a que usa las funciones de Logeo y desLogeo.
+ */
+
 public class BridgeMain {
+
+    //
     MethodChannelHandler MCH;
 
     public BridgeMain() {

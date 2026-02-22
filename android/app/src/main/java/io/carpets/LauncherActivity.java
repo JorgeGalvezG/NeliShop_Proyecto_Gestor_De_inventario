@@ -106,14 +106,6 @@ public class LauncherActivity extends FlutterActivity {
                     }).start();
 
                 });
-        //new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), LOGIN)
-        //      .setMethodCallHandler(
-        //           (call, result) -> {
-        //             BridgeMain BM = new BridgeMain();
-        // ✅ Esto estaba bien
-        //           result.success(BM.Dirigir(call.method, (List<Object>) call.arguments));
-        //   }
-        //);
 
         // Canal Compras
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), COMPRA)
@@ -135,14 +127,5 @@ public class LauncherActivity extends FlutterActivity {
                     }).start();
 
                 });
-        /*new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), COMPRA)
-                .setMethodCallHandler(
-                        (call, result) -> {
-                            BridgeCompra BC = new BridgeCompra();
-                            // 🔴 3. CORRECCIÓN: Faltaba result.success()
-                            result.success(BC.Dirigir(call.method, (List<Object>) call.arguments));
-                        }
-                );
-    }*/
     }
 }
