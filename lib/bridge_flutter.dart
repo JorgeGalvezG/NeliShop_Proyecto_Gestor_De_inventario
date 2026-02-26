@@ -1,4 +1,4 @@
-import 'dart:ffi';
+
 import 'package:flutter/services.dart';
 import 'config/core.dart';
 import 'config/constants.dart';
@@ -28,7 +28,7 @@ class BridgeFlutter {
       print("⚠️ Error de Plataforma en $method: ${e.message}");
       return null;
     } catch (e) {
-      print("⚠️ Error Desconocido en $method: $e");
+      print("⚠️ Error Desconocido en $method: $e"); //ERROR
       return null;
     }
   }
@@ -61,7 +61,10 @@ class BridgeFlutter {
 
   // Obtener lista (Usa el genérico _invoke para ser más rápido)
   Future<JsonList> obtenerProductos() async {
-    final result = await _invoke<JsonList>(
+    //Recibe la lista de Mapas<Object?, Object?> de GetProducts
+    // Hacer que el mapa tenga otros tipo de dato puede llevar a errores.
+    // Es posible llamar a los elementos del mapa usando Mapa['llave']
+    JsonList? result = await _invoke<JsonList>(
         _channelProductos,
         AppConstants.methodGetProducts,
         []

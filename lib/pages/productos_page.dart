@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../modelos/product_model.dart';
 import '../bridge_flutter.dart';
@@ -43,15 +45,16 @@ class _ProductosPageState extends State<ProductosPage> {
 
     try {
       // Llamamos al bridge. Como devuelve JsonList (definido en core.dart), es compatible.
-      final rawProducts = await _bridge.obtenerProductos();
+
+      JsonList rawProducts = await _bridge.obtenerProductos();
+
+
 
       setState(() {
-        _allProducts = rawProducts
-            .map((json) => Product.fromJson(json)) //Convierte la list de json's a Productos
-            .toList();
+        _allProducts = Product.ListOfProducts(rawProducts);
 
         // Extraemos categorías
-        _categories = _allProducts
+        _categories = _allProducts  //Aún no aparecen categorías, aparece un "null" en la lista
             .map((p) => p.category)
             .toSet()  //Se eliminan duplicados y se desordenan
             .toList();  //Se hace una lista del resultado
@@ -357,7 +360,6 @@ class _ProductosPageState extends State<ProductosPage> {
   Widget build(BuildContext context) {
     //Tenemos los productos filtrados
     final filteredList = _getFilteredProducts();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Productos"),
@@ -375,6 +377,7 @@ class _ProductosPageState extends State<ProductosPage> {
             ],
           )
         ],
+
         //Se da espacio a una caja de texto para el filtrado por nombre
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
@@ -393,9 +396,10 @@ class _ProductosPageState extends State<ProductosPage> {
           ),
         ),
       ),
+      //Se muestra el contenido de la lista de productos
       body: _isLoading
           ? const StitchLoader()
-          : filteredList.isEmpty
+          : filteredList.isEmpty  //filteredList.IsEmpty, Dejalo asi hasta que vea en que falla el _allProducts
           ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.search_off, size: 60, color: Colors.grey[300]), const Text("No hay productos")]))
           : RefreshIndicator(
         //recargamos los productos
@@ -409,12 +413,12 @@ class _ProductosPageState extends State<ProductosPage> {
             childAspectRatio: 0.70,
           ),
           //contador de Items
-          itemCount: filteredList.length,
+          itemCount: filteredList.length, //filteredList.length
           //Generamos los Items
           itemBuilder: (context, index) {
             return AnimatedListItem(
               index: index,
-              child: _buildProductCard(filteredList[index]),
+              child: _buildProductCard(filteredList[index]),//filteredList[index]
             );
           },
         ),

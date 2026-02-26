@@ -106,7 +106,7 @@ public class MethodChannelHandler {
 
     /**
      * Devuelve todos los productos de la base de datos.
-     * @return Devuelve una lista de mapas con los productos.
+     * @return Devuelve una lista de mapas<> con los productos. Tipo List< Map<String, Object> >Siendo Object los datos del producto.
      */
     public List<Map<String, Object>> obtenerProductos() {
         List<Producto> productos = productoService.obtenerTodos();  //Se obtienen todos los productos

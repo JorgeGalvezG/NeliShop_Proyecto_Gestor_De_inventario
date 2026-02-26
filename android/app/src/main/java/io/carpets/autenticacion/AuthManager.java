@@ -18,8 +18,7 @@ public class AuthManager {
 
     // Guarda la sesión del usuario
     public void saveSession(String email, String token, String role) {
-        prefs.e
-        dit().putString("email", email).putString("token", token).putString("role", role).apply();
+        prefs.edit().putString("email", email).putString("token", token).putString("role", role).apply();
     }
 
     // Guarda solo el token de autenticación

@@ -177,6 +177,10 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
         return null;
     }
 
+    /**
+     * Usa un llamado a la base de datos para obtener TODOS los productos
+     * @return Lista : Es una lista con todos los productos tipo List<Producto>
+     */
     @Override
     public List<Producto> findAll() {
         List<Producto> lista = new ArrayList<>();
@@ -272,7 +276,7 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
     /**
      * Recopila los datos de ResultSet y los convierte a un objeto Producto
      * @param rs Es el set de datos de un producto
-     * @return retorna el objeto Producto con los datos obtenidos de la bd.
+     * @return retorna el objeto Producto con los datos contenidos en el ResultSet.
      * @throws SQLException
      */
     private Producto mapearProducto(ResultSet rs) throws SQLException {
