@@ -1,11 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-// 1. IMPORTANTE: Importamos tu nuevo archivo de configuración/core
-import '../config/core.dart';
 import '../modelos/product_model.dart';
 import '../bridge_flutter.dart';
 import '../widgets/optimized_image.dart';
 import '../widgets/animated_list_item.dart';
 import '../widgets/stitch_loader.dart';
+//Este importe es importante. Tiene varias clases utiles.
+import '../config/core.dart';
 
 class ProductosPage extends StatefulWidget {
   const ProductosPage({super.key});
@@ -43,18 +45,19 @@ class _ProductosPageState extends State<ProductosPage> {
 
     try {
       // Llamamos al bridge. Como devuelve JsonList (definido en core.dart), es compatible.
-      final rawProducts = await _bridge.obtenerProductos();
+
+      JsonList rawProducts = await _bridge.obtenerProductos();
+
+
 
       setState(() {
-        _allProducts = rawProducts
-            .map((json) => Product.fromJson(json))
-            .toList();
+        _allProducts = Product.ListOfProducts(rawProducts);
 
         // Extraemos categorías
-        _categories = _allProducts
+        _categories = _allProducts  //Aún no aparecen categorías, aparece un "null" en la lista
             .map((p) => p.category)
-            .toSet()
-            .toList();
+            .toSet()  //Se eliminan duplicados y se desordenan
+            .toList();  //Se hace una lista del resultado
         _categories.insert(0, "Todos");
 
         _isLoading = false;
@@ -65,20 +68,28 @@ class _ProductosPageState extends State<ProductosPage> {
     }
   }
 
-  // --- LÓGICA DE FILTRADO ---
+  /**
+   * --- LÓGICA DE FILTRADO ---
+   */
   List<Product> _getFilteredProducts() {
     List<Product> temp = _allProducts.where((product) {
+      //Verifica si el texto buscado coincide o es parte del nombre de algun producto.
       final nameMatch = product.name.toLowerCase().contains(_searchQuery.toLowerCase());
+      //Verifica si la categoría coincide con lo buscado
       final categoryMatch = _selectedCategory == null || _selectedCategory == "Todos" || product.category == _selectedCategory;
       return nameMatch && categoryMatch;
     }).toList();
 
+    //Se ordena según lo pedido
     temp.sort((a, b) {
       switch (_selectedSort) {
         case SortType.nombreAZ:
+        //Alfabeticamente
           return a.name.compareTo(b.name);
         case SortType.precioMayorMenor:
+        //Por precios de manera descendente
           return b.price.compareTo(a.price);
+      //Por precios de manera ascendente
         case SortType.precioMenorMayor:
           return a.price.compareTo(b.price);
       }
@@ -342,24 +353,32 @@ class _ProductosPageState extends State<ProductosPage> {
     );
   }
 
+  /**
+   * Este widget genera la pantala principal de los productos.
+   */
   @override
   Widget build(BuildContext context) {
+    //Tenemos los productos filtrados
     final filteredList = _getFilteredProducts();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Productos"),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadProducts),
+          //Stack es para apilar widgets encima de otros
           Stack(
             children: [
+              //Este es el boton principal, sirve para mostrar la pestaña de filtros
               IconButton(icon: const Icon(Icons.filter_list), onPressed: _showFilterDialog),
+              //Al poner algún filtro, se mostrará una bolita roja para indicarle al usuario el uso de filtros
               if (_selectedCategory != null || _selectedSort != SortType.nombreAZ)
                 Positioned(right: 8, top: 8, child: Container(padding: const EdgeInsets.all(4), decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))),
             ],
           )
         ],
+
+        //Se da espacio a una caja de texto para el filtrado por nombre
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -377,24 +396,29 @@ class _ProductosPageState extends State<ProductosPage> {
           ),
         ),
       ),
+      //Se muestra el contenido de la lista de productos
       body: _isLoading
           ? const StitchLoader()
-          : filteredList.isEmpty
+          : filteredList.isEmpty  //filteredList.IsEmpty, Dejalo asi hasta que vea en que falla el _allProducts
           ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.search_off, size: 60, color: Colors.grey[300]), const Text("No hay productos")]))
           : RefreshIndicator(
+        //recargamos los productos
         onRefresh: _loadProducts,
         child: GridView.builder(
           padding: const EdgeInsets.all(12),
+          //cuadriculado
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             mainAxisSpacing: 12, crossAxisSpacing: 12,
             childAspectRatio: 0.70,
           ),
-          itemCount: filteredList.length,
+          //contador de Items
+          itemCount: filteredList.length, //filteredList.length
+          //Generamos los Items
           itemBuilder: (context, index) {
             return AnimatedListItem(
               index: index,
-              child: _buildProductCard(filteredList[index]),
+              child: _buildProductCard(filteredList[index]),//filteredList[index]
             );
           },
         ),

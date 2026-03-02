@@ -8,6 +8,11 @@ import '../pages/ventas_page.dart';
 import '../pages/promociones_page.dart';
 import '../pages/configuracion_page.dart';
 
+/**
+ * Esta clase es la que decide cuánto mostrar en el programa
+ * Si el usuario es un administrador, se mostrará todo
+ * Caso contrario, solo se mostrarán algunas cosas
+ */
 class MainLayout extends StatefulWidget {
   final String userRole;
   const MainLayout({super.key, required this.userRole});

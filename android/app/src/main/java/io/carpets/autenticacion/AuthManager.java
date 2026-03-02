@@ -9,7 +9,7 @@ import android.content.SharedPreferences;
 */
 
 public class AuthManager {
-    private static final String PREFS = "apptienda_prefs";
+    private static final String PREFS = "COM.EXAMPLE.NELLYSHOP";
     private final SharedPreferences prefs;
 
     public AuthManager(Context ctx) {

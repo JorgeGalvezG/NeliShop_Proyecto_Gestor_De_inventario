@@ -65,11 +65,11 @@ public class MethodChannelHandler {
             pst.setString(2, password); //el segundo "hueco" es la contraseña cifrada
 
             //ejecutamos
-            rs = pst.executeQuery();
+            rs = pst.executeQuery(); //posible SQLException
 
             if (rs.next()) {
                 response.put("status", "ok");
-                response.put("mensaje", "Bienvendio" + rs.getString("nombre"));
+                response.put("mensaje", "Bienvenido" + rs.getString("nombre"));
 
                 //guardamos datos utiles para flutter
                 response.put("id", rs.getInt("idvendedor"));
@@ -88,7 +88,7 @@ public class MethodChannelHandler {
             try {
                 if (rs != null) rs.close();
                 if (pst != null) pst.close();
-                //no sse cierra conn por si se hace uso de un pool compartido
+                //no se cierra conN por si se hace uso de un pool compartido
                 //si se abre una por consulta; solo descomentar la siguiente linea de codigo:
                 //if (conn != null) conn.close();
             } catch (SQLException e) {
@@ -103,9 +103,18 @@ public class MethodChannelHandler {
     // ========================================================================
 
     // Devolvemos List<Map> en lugar de List<Producto>
+
+    /**
+     * Devuelve todos los productos de la base de datos.
+     * @return Devuelve una lista de mapas<> con los productos. Tipo List< Map<String, Object> >Siendo Object los datos del producto.
+     */
     public List<Map<String, Object>> obtenerProductos() {
-        List<Producto> productos = productoService.obtenerTodos();
-        return productos.stream().map(this::productoToMap).collect(Collectors.toList());
+        List<Producto> productos = productoService.obtenerTodos();  //Se obtienen todos los productos
+        return productos.stream()                                   //stream() es un flujo de trabajo, la
+                                                                    // función que le envíes se le aplicará a todos los
+                                                                    //elementos de la lista
+                .map(this::productoToMap)               //Se usa la función productoToMap para el stream
+                .collect(Collectors.toList());          //Recupera los datos y los hace una lista ( toList() )
     }
 
     // Helper para convertir Producto a Map (Lo que Flutter entiende)

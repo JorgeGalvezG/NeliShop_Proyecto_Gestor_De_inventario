@@ -15,12 +15,17 @@ class _LoginScreenState extends State<LoginScreen> {
   // --- VARIABLES DE ESTADO ---
   bool _showButtons = true;
   String _selectedRole = ''; // 'admin' o 'vendedor'
-  bool _isLoading = false;
+  bool _isLoading = false;  //Se usa para mostrar el la animación de espera
 
+  //Se guardan los campos en una variable
   final _userController = TextEditingController();
   final _passController = TextEditingController();
+
+  //Puente Para comunicarnos con Java
   final _bridge = BridgeFlutter();
 
+
+  //Cierra controladores al cerrar el programa
   @override
   void dispose() {
     _userController.dispose();
@@ -28,6 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  //Cambia el rol del usuario
   void _selectRole(String role) {
     setState(() {
       _showButtons = false;
@@ -35,9 +41,10 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  // --- LÓGICA DE LOGIN CORREGIDA ---
+  //Al pulsarse el botón de login, se ejecuta esta función
   void _login() async {
-    // 1. Validar campos vacíos
+
+    //Se verifica que no haya campos vacíos
     if (_userController.text.isEmpty || _passController.text.isEmpty) {
       _mostrarSnack('Por favor, ingrese usuario y contraseña.', Colors.orange);
       return;
@@ -45,8 +52,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // 2. Llamada al Bridge con controladores
 
+    // Usamos el backend (Java) para logearnos
     final response = await _bridge.login(
       _userController.text.trim(),
       _passController.text.trim(),
@@ -54,13 +61,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = false);
 
+    // Verifica si el widget login_screen sigue en el arbol de widgets
     if (!mounted) return;
 
     // 3. Verificar respuesta
     if (response.isSuccess) {
 
-      String rolRecibido = response.data['rol'] ?? 'user';
+      String rolRecibido = response.data['rol'] ?? 'vendedor';
 
+      //El programa decide cuánto del programa mostrar dependiendo del tipo de usuario
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => MainLayout(userRole: rolRecibido),
@@ -189,13 +198,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: _isLoading ? null : _login, // Desactiva botón si carga
                 child: _isLoading
                     ? const SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : const Text('INGRESAR', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
             ],

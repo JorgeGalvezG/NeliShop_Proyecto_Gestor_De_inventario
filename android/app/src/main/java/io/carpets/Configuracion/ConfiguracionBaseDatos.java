@@ -3,7 +3,7 @@ package io.carpets.Configuracion;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import io.carpets.Credenciales;
+import io.carpets.Configuracion.Credenciales;
 
 import java.sql.Timestamp;
 

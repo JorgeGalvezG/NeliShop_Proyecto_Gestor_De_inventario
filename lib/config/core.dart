@@ -4,6 +4,7 @@ typedef JsonMap = Map<String, dynamic>;
 
 /// Define una lista de mapas: Útil para listas de productos o ventas.
 typedef JsonList = List<dynamic>;
+//typedef ListOfMaps = List<Map<String, dynamic>>;
 
 /// Esta clase estandariza CUALQUIER respuesta que venga de Java.
 /// Ya no tendrás que adivinar si viene un Map o un null.

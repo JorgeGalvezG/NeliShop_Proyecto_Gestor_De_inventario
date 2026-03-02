@@ -8,6 +8,7 @@ public class Venta {
     private double monto;
     private String descripcion;
     private int vendedorId;
+    private String clienteDni;
 
     // Nuevos campos para boleta
     private String numeroBoleta;
@@ -46,4 +47,14 @@ public class Venta {
     public void setIgvAplicado(double igvAplicado) { this.igvAplicado = igvAplicado; }
     public double getTotalFinal() { return totalFinal; }
     public void setTotalFinal(double totalFinal) { this.totalFinal = totalFinal; }
+
+    //Para encontrar el cliente
+
+    public String getClienteDni() {
+        return clienteDni;
+    }
+
+    public void setClienteDni(String clienteDni) {
+        this.clienteDni = clienteDni;
+    }
 }

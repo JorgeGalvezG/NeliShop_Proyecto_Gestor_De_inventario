@@ -39,6 +39,9 @@ public class LauncherActivity extends FlutterActivity {
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
+
+        
+        //CANAL DE PRODUCTOS
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), PRODUCT)
                 .setMethodCallHandler(
                         (call, result) -> {
@@ -46,13 +49,18 @@ public class LauncherActivity extends FlutterActivity {
                             result.success(BP.Dirigir (call.method, (List<Object>) call.arguments ));
                         }
                 );
+
+        //CANAL DE VENTAS
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), VENTA)
                 .setMethodCallHandler(
                         (call, result) -> {
                             BridgeVenta BV = new BridgeVenta();
-                            BV.Dirigir (call.method, (List<Object>) call.arguments );
+                            result.success(BV.Dirigir (call.method, (List<Object>) call.arguments));
                         }
                 );
+
+        
+        //CANAL PRINCIPAL
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), LOGIN)
                 .setMethodCallHandler(
                         (call, result) -> {
@@ -61,11 +69,14 @@ public class LauncherActivity extends FlutterActivity {
 
                         }
                 );
+
+
+        //CANAL DE COMPRAS
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), COMPRA)
                 .setMethodCallHandler(
                         (call, result) -> {
                             BridgeCompra BC = new BridgeCompra();
-                            BC.Dirigir (call.method, (List<Object>) call.arguments );
+                            result.success( BC.Dirigir (call.method, (List<Object>) call.arguments) );
                         }
                 );
     }
