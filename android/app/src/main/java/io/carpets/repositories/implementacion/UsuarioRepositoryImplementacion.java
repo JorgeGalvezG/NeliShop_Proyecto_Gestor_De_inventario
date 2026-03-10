@@ -9,6 +9,11 @@ import java.util.List;
 
 public class UsuarioRepositoryImplementacion implements UsuarioRepository {
 
+    /**
+     * Registra un usuario.
+     * @param usuario Almacena toda la información del usuario a insertar.
+     * @return True si es que todo salió bien, false si es que hubo algún error.
+     */
     @Override
     public boolean save(Usuario usuario) {
         String sql = "INSERT INTO vendedor (nombre, rol, password) VALUES (?, ?, ?)";
@@ -34,6 +39,11 @@ public class UsuarioRepositoryImplementacion implements UsuarioRepository {
         return false;
     }
 
+    /**
+     * Actualiza la información del usuario.
+     * @param usuario Contiene la información nueva del usuario. Esta info reemplaza a la de la base de datos.
+     * @return True si es que todo salió bien, false si es que hubo algún error.
+     */
     @Override
     public boolean update(Usuario usuario) {
         String sql = "UPDATE vendedor SET nombre=?, rol=?, password=? WHERE idvendedor=?";
@@ -53,6 +63,11 @@ public class UsuarioRepositoryImplementacion implements UsuarioRepository {
         return false;
     }
 
+    /**
+     * Elimina el registro de un vendedor usando su id.
+     * @param id Identificador del vendedor, se usa para ubicarlo.
+     * @return True si es que todo salió bien, false si es que hubo algún error.
+     */
     @Override
     public boolean delete(int id) {
         String sql = "DELETE FROM vendedor WHERE idvendedor=?";
@@ -68,6 +83,11 @@ public class UsuarioRepositoryImplementacion implements UsuarioRepository {
         return false;
     }
 
+    /**
+     * Encuentra un vendedor usando su Id.
+     * @param id Identificador, usado para ubicar al usuario.
+     * @return Objeto usuario, si no es encontrado, retorna null.
+     */
     @Override
     public Usuario findById(int id) {
         String sql = "SELECT * FROM vendedor WHERE idvendedor=?";
@@ -91,6 +111,11 @@ public class UsuarioRepositoryImplementacion implements UsuarioRepository {
         return null;
     }
 
+    /**
+     * Encuentra al usuario usando su nombre.
+     * @param username Nombre completo del usuario. Debe ser identico al registrado.
+     * @return Objeto usuario con la información obtenida. Si no es encontrado, retorna null.
+     */
     @Override
     public Usuario findByUsername(String username) {
         String sql = "SELECT * FROM vendedor WHERE nombre=?"; // Mantenemos la consulta por "nombre" en la BD
@@ -114,6 +139,10 @@ public class UsuarioRepositoryImplementacion implements UsuarioRepository {
         return null;
     }
 
+    /**
+     * Busca a todos los usuarios registrados.
+     * @return Lista tipo Usuario con todos los datos de los mismos.
+     */
     @Override
     public List<Usuario> findAll() {
         List<Usuario> lista = new ArrayList<>();

@@ -42,10 +42,14 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
         }
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.GINGERBREAD)
+    /**
+     * Registra un producto en la base de datos.
+     * @param producto Contiene la información del producto a registrar.
+     * @return 'true' es que todo salió correcto, 'false' es que hubo problemas.
+     */
     @Override
     public boolean save(@NonNull Producto producto) {
-        // 1. Asegurar categoría
+        // Verificamos si la categoria existe
         try {
             if (!asegurarCategoria(producto.getCategoriaNombre())) {
                 System.out.println("Error: Categoría inválida o no se pudo crear.");
@@ -56,7 +60,7 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
             return false;
         }
 
-        // 2. SQL Correcto (8 parámetros)
+        //Query molde con 8 parametros
         String sql = "INSERT INTO producto (nombre, fecha_ingreso, precio_compra, precio_venta, cantidad, categoria_nombre, image_path, precio_oferta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
@@ -104,6 +108,11 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
         return false;
     }
 
+    /**
+     * Actualiza la información de un producto específico.
+     * @param producto Contiene toda la información del producto.
+     * @return 'true' es que se actualizó correctamente. 'false' es que hubo problemas.
+     */
     @Override
     public boolean update(Producto producto) {
         // SQL: 8 campos a actualizar + 1 condición WHERE = 9 parámetros en total
@@ -147,6 +156,11 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
         return false;
     }
 
+    /**
+     * Elimina el registro de un producto.
+     * @param id Identificador del producto en la base de datos.
+     * @return 'true' es que se eliminó correctamente, 'false' es que hubo problemas.
+     */
     @Override
     public boolean delete(int id) {
         String sql = "DELETE FROM producto WHERE idproducto=?";
@@ -160,6 +174,11 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
         return false;
     }
 
+    /**
+     * Encuentra la información de un producto usando su Id.
+     * @param id Identificador del producto.
+     * @return Retorna el producto, y si no es encontrado, un null.
+     */
     @Override
     public Producto findById(int id) {
         String sql = "SELECT * FROM producto WHERE idproducto=?";
@@ -179,7 +198,7 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
 
     /**
      * Usa un llamado a la base de datos para obtener TODOS los productos
-     * @return Lista : Es una lista con todos los productos tipo List<Producto>
+     * @return Lista: Es una lista con todos los productos tipo List<Producto>
      */
     @Override
     public List<Producto> findAll() {
@@ -197,6 +216,11 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
         return lista;
     }
 
+    /**
+     * Busca un listado de productos usando una categoria seleccionada.
+     * @param categoriaNombre Categoria por la que se buscarán los productos.
+     * @return Retorna una lista, si no hubo nada o hubo problemas en la busqueda, la lista estará vacia.
+     */
     @Override
     public List<Producto> findByCategoria(String categoriaNombre) {
         List<Producto> lista = new ArrayList<>();
@@ -215,6 +239,11 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
         return lista;
     }
 
+    /**
+     * Buscará los productos que CONTENGAN el texto buscado.
+     * @param nombre Es el texto con el que filtraremos los productos.
+     * @return Una lista con productos, si no hubo coincidencias o si es que hubo problemas, la lista estará vacia.
+     */
     @Override
     public List<Producto> findByNombre(String nombre) {
         List<Producto> lista = new ArrayList<>();
@@ -235,6 +264,11 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
         return lista;
     }
 
+    /**
+     * Obtienes la ganancia total obtenida.
+     * ANOTACION: PQ CHCH TA ESTO EN ESTA CLASE???
+     * @return retorna la ganancia total, si hubo problemas, retorna 0.0
+     */
     @Override
     public double getGananciaTotal() {
         // Corrección en la lógica: Usar nombres de tablas consistentes
@@ -254,6 +288,11 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
         return 0.0;
     }
 
+    /**
+     * Verifica si un producto sigue existiendo usando su Id como verificador.
+     * @param id Identificador del producto
+     * @return true o false segun si existe o no.
+     */
     @Override
     public boolean existeIdById(int id) {
         String sql = "SELECT COUNT(*) FROM producto WHERE idproducto = ?";

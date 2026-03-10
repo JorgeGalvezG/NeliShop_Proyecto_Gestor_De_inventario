@@ -4,14 +4,14 @@ import java.util.Date;
 
 
 public class Producto {
-    private int id;
-    private String nombre;
-    private Date fechaIngreso;
+    private int id = 0; //0 será representación de 'null', porque no existe id = 0
+    private String nombre = null; // El null se usa para las busquedas (ProductoRepositoryImplementacion)
+    private Date fechaIngreso = null;
     private double precioCompra;
     private double precioVenta;
     private int cantidad;
-    private String categoriaNombre;
-    private String imagePath;
+    private String categoriaNombre = null;
+    private String imagePath = null;
     private Double precioOferta;
 
     public Producto() {}

@@ -1,8 +1,8 @@
 package io.carpets.entidades;
 
 public class Cliente {
-    private String nombre;
-    private String dni;
+    private String nombre = null;
+    private String dni = null;
 
     public Cliente() {}
 

@@ -10,7 +10,7 @@ public interface ProductoRepository {
     Producto findById(int id);
     List<Producto> findAll();
     List<Producto> findByCategoria(String categoriaNombre);
-    List<Producto> findByNombre(String nombre);
+    List<Producto>  findByNombre(String nombre);
     double getGananciaTotal();
 
     boolean existeIdById(int id);

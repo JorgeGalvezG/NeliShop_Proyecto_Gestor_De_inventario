@@ -15,6 +15,11 @@ import java.util.List;
 
 public class CompraRepositoryImplementacion implements CompraRepository {
 
+    /**
+     * Registra una compra dentro de la base de datos.
+     * @param compra Contiene todos los datos de la compra.
+     * @return Retorna 'true' si todo salió bien, 'false' si hubo algun problema.
+     */
     @Override
     public boolean save(Compra compra) {
         String sql = "INSERT INTO compra (descripcion, monto) VALUES (?, ?)";
@@ -39,6 +44,11 @@ public class CompraRepositoryImplementacion implements CompraRepository {
         return false;
     }
 
+    /**
+     * Actualiza los datos de la compra.
+     * @param compra Contiene los datos de la compra a actualizar.
+     * @return true si es que todo salió bien, false si es que hubo algún error
+     */
     @Override
     public boolean update(Compra compra) {
         String sql = "UPDATE compra SET descripcion=?, monto=? WHERE idcompra=?";
@@ -57,6 +67,11 @@ public class CompraRepositoryImplementacion implements CompraRepository {
         return false;
     }
 
+    /**
+     * Elimina una compra usando su id.
+     * @param id Identificador de la compra.
+     * @return true si es que todo salió bien, false si es que hubo algún error
+     */
     @Override
     public boolean delete(int id) {
         String sql = "DELETE FROM compra WHERE idcompra=?";
@@ -72,6 +87,11 @@ public class CompraRepositoryImplementacion implements CompraRepository {
         return false;
     }
 
+    /**
+     * Encuentra una compra usando su id.
+     * @param id Identificador de la compra.
+     * @return true si es que todo salió bien, false si es que hubo algún error.
+     */
     @Override
     public Compra findById(int id) {
         String sql = "SELECT * FROM compra WHERE idcompra=?";
@@ -94,6 +114,10 @@ public class CompraRepositoryImplementacion implements CompraRepository {
         return null;
     }
 
+    /**
+     * Encuentra todas las compras registradas.
+     * @return Una lista con todas las compras y, si hubo algún error o no hay compras, una lista vacía.
+     */
     @Override
     public List<Compra> findAll() {
         List<Compra> lista = new ArrayList<>();

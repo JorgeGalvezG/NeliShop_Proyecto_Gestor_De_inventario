@@ -9,6 +9,11 @@ import java.util.List;
 
 public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepository {
 
+    /**
+     * Registra un detalle de compra.
+     * @param detalle Contiene todos los datos sobre el detalle de compra.
+     * @return true si es que todo salió bien, false si es que hubo algún error
+     */
     @Override
     public boolean save(DetalleCompra detalle) {
 
@@ -29,6 +34,11 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
         return false;
     }
 
+    /**
+     * Actualiza los datos de un detalle de compra específico.
+     * @param detalle Contiene los datos nuevos del detalle de compra.
+     * @return true si es que todo salió bien, false si es que hubo algún error
+     */
     @Override
     public boolean update(DetalleCompra detalle) {
 
@@ -50,6 +60,11 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
         return false;
     }
 
+    /**
+     * Elimina un detalle de compra especifico.
+     * @param id Identificador del detalle de compra, se usa para ubicarlo.
+     * @return true si es que todo salió bien, false si es que hubo algún error
+     */
     @Override
     public boolean delete(int id) {
 
@@ -66,6 +81,11 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
         return false;
     }
 
+    /**
+     * Encuentra los datos de un detalle de compra específico.
+     * @param id Identificador, se usa para ubicar al detalle de compra.
+     * @return Un objeto DetalleCompra con los datos obtenidos, si hubo un problema se devuelve un nulo.
+     */
     @Override
     public DetalleCompra findById(int id) {
 
@@ -91,6 +111,11 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
         return null;
     }
 
+    /**
+     * Busca los detalles de compra hechos en una compra específica.
+     * @param compraId Id de la compra, se usa como identificador.
+     * @return Una lista con los detalles de compra. Si no hay o hubo errores, devuelve un nulo.
+     */
     @Override
     public List<DetalleCompra> findByCompraId(int compraId) {
         List<DetalleCompra> lista = new ArrayList<>();
@@ -116,6 +141,10 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
         return lista;
     }
 
+    /**
+     * Retorna todos los detalles de compra.
+     * @return Una lista con los detalles de compra.
+     */
     @Override
     public List<DetalleCompra> findAll() {
 
