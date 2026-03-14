@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import io.carpets.Configuracion.ConfiguracionBaseDatos;
+import io.carpets.util.Response;
 
 public class MethodChannelHandler {
 
@@ -49,8 +50,9 @@ public class MethodChannelHandler {
     } */
     //metodo cambiado y cifrando para evitar vulneraciones
 
-    public Map<String, Object> login(String dni, String password) {
-        Map<String, Object> response = new HashMap<>();
+    public Response<Map<String, Object>> login(String dni, String password) {
+        Response<Map<String, Object>> response = new Response<>();
+        Map<String, Object> Usuario = new HashMap<>();
         Connection conn = null;
         PreparedStatement pst = null;
         ResultSet rs = null;
@@ -68,22 +70,20 @@ public class MethodChannelHandler {
             rs = pst.executeQuery(); //posible SQLException
 
             if (rs.next()) {
-                response.put("status", "ok");
-                response.put("mensaje", "Bienvenido" + rs.getString("nombre"));
+                Usuario.put("status", "ok");
+                Usuario.put("mensaje", "Bienvenido" + rs.getString("nombre"));
 
                 //guardamos datos utiles para flutter
-                response.put("id", rs.getInt("idvendedor"));
-                response.put("rol", rs.getString("rol")); // 'admin' o 'vendedor'
-                response.put("nombre", rs.getString("nombre"));
+                Usuario.put("id", rs.getInt("idvendedor"));
+                Usuario.put("rol", rs.getString("rol")); // 'admin' o 'vendedor'
+                Usuario.put("nombre", rs.getString("nombre"));
+                response.exito(Usuario);
             } else {
                 // Credenciales incorrectas
-                response.put("status", "error");
-                response.put("mensaje", "Usuario o contraseña incorrectos");
+                response.internal_error("MCH.login: Credenciales incorrectas.");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            response.put("status", "error");
-            response.put("mensaje", "Error de base de datos: " + e.getMessage());
+            response.internal_error("MCH.login: " + e.getMessage());
         } finally {
             try {
                 if (rs != null) rs.close();
@@ -92,7 +92,7 @@ public class MethodChannelHandler {
                 //si se abre una por consulta; solo descomentar la siguiente linea de codigo:
                 //if (conn != null) conn.close();
             } catch (SQLException e) {
-                e.printStackTrace();
+                response.internal_error("MCH.login: " + e.getMessage());
             }
         }
         return response;
@@ -108,13 +108,28 @@ public class MethodChannelHandler {
      * Devuelve todos los productos de la base de datos.
      * @return Devuelve una lista de mapas<> con los productos. Tipo List< Map<String, Object> >Siendo Object los datos del producto.
      */
-    public List<Map<String, Object>> obtenerProductos() {
-        List<Producto> productos = productoService.obtenerTodos();  //Se obtienen todos los productos
-        return productos.stream()                                   //stream() es un flujo de trabajo, la
-                                                                    // función que le envíes se le aplicará a todos los
-                                                                    //elementos de la lista
-                .map(this::productoToMap)               //Se usa la función productoToMap para el stream
-                .collect(Collectors.toList());          //Recupera los datos y los hace una lista ( toList() )
+    public Response<List<Map<String, Object>>> obtenerProductos() {
+        //Llamamos al ProductoService.
+        Response<List<Producto>> request = productoService.obtenerTodos();
+        //Creamos otro para la respuesta de la actual función.
+        Response<List<Map<String, Object>>> response = new Response<>();
+        //Si hubo algún error al obtener los objetos.
+        if(!request.isOk()){
+            //Mandamos un mensaje al front.
+            response.message_error("Petición no concedida. Verifique su conexión de internet");
+            return response;
+        }
+
+        List<Producto> productos = request.getContent();  //Se obtienen todos los productos
+        response.exito(
+                   productos.stream()            //stream() es un flujo de trabajo, la
+                           // función que le envíes se le aplicará a todos los
+                           //elementos de la lista
+                    .map(this::productoToMap)               //Se usa la función productoToMap para el stream
+                    .collect(Collectors.toList())           //Recupera los datos y los hace una lista ( toList() )
+        );
+
+        return response;
     }
 
     // Helper para convertir Producto a Map (Lo que Flutter entiende)
@@ -133,60 +148,71 @@ public class MethodChannelHandler {
         return map;
     }
 
-    public Map<String, Object> agregarProducto(Producto producto) {
-        try {
-            boolean exito = productoService.agregarProducto(producto);
-            Map<String, Object> resultado = new HashMap<>();
-            resultado.put("status", exito ? "ok" : "error");
-            if (!exito) resultado.put("mensaje", "No se pudo agregar el producto");
-            return resultado;
-        } catch (Exception e) {
-            return errorResponse(e.getMessage());
+    public Response agregarProducto(Producto producto) {
+        Response response = new Response();
+        if(!productoService.agregarProducto(producto).isOk()){
+            response.message_error("Error al ingresar producto, verifique que los datos sean válidos.");
+            return response;
         }
+        response.exito();
+        return response;
     }
 
-    public Map<String, Object> actualizarProducto(Producto producto) {
-        try {
-            productoService.actualizarInventario(producto);
-            Map<String, Object> resultado = new HashMap<>();
-            resultado.put("status", "ok");
-            return resultado;
-        } catch (Exception e) {
-            return errorResponse(e.getMessage());
+    public Response actualizarProducto(Producto producto) {
+        Response response = new Response();
+        if(!productoService.actualizarInventario(producto).isOk()){
+            response.message_error("Error al actualizar producto, verifique que los datos sean válidos. Verifique su conexión a internet.");
+            return response;
         }
+        response.exito();
+        return response;
     }
 
-    public Map<String, Object> eliminarProducto(int idProducto) {
-        try {
-            boolean exito = productoService.eliminarProducto(idProducto);
-            Map<String, Object> resultado = new HashMap<>();
-            resultado.put("status", exito ? "ok" : "error");
-            return resultado;
-        } catch (Exception e) {
-            return errorResponse(e.getMessage());
+    public Response eliminarProducto(int idProducto) {
+        Response response = new Response();
+        if(!productoService.eliminarProducto(idProducto).isOk()){
+            response.message_error("Error al eliminar producto. Verifique su conexión a internet.");
+            return response;
         }
+        response.exito();
+        return response;
     }
 
     // Métodos de búsqueda y validación (Stubs funcionales)
-    public List<Map<String, Object>> buscarProductos(String criterio, String tipo) {
-        List<Producto> productos = productoService.buscarProductos(criterio, tipo);
-        return productos.stream().map(this::productoToMap).collect(Collectors.toList());
+    public Response<List<Map<String, Object>>> buscarProductos(String criterio, String tipo) {
+        //Registramos la consulta.
+        Response<List<Producto>> request = productoService.buscarProductos(criterio, tipo);
+        //Creamos la respuesta.
+        Response<List<Map<String, Object>>> response = new Response<>();
+
+        //Si la consulta tuvo errores, los mostramos en el front.
+        if(!request.isOk()){
+            response.message_error("Error al buscar productos. Verifique su conexión a internet.");
+            return response;
+        }
+
+        //Si no hubo errores, obtenemos la lista.
+        List<Producto> productos = request.getContent();
+        response.exito(
+                productos.stream().map(this::productoToMap).collect(Collectors.toList())
+        );
+        return response;
     }
 
-    public boolean validarProductoExiste(int productoId) {
-        // Implementación básica o llamada al servicio si existe
-        return true;
-    }
-
-    public List<Map<String, Object>> buscarProductoEnVentaPorIdONombre(String criterio) {
+    public Response<List<Map<String, Object>>> buscarProductoEnVentaPorIdONombre(String criterio) {
         // Retornamos lista vacía para evitar crash por ahora
-        return new ArrayList<>();
+        Response response = new Response();
+        response.exito(new ArrayList<>());
+        return response;
     }
 
 
-    public Double getGananciaTotal(){
-        double Ganancia = productoService.getGananciaTotal();
-        return Ganancia;
+    public Response<Double> getGananciaTotal(){
+        Response<Double> response = productoService.getGananciaTotal();
+        if(!response.isOk()){
+            response.message_error("Error al obtener la ganancia total. Revise su conexión a internet.");
+        }
+        return response;
 
     }
     // ========================================================================
@@ -220,7 +246,7 @@ public class MethodChannelHandler {
             int idVenta = ventaService.registrarVenta(venta, detalles);
             Map<String, Object> resultado = new HashMap<>();
             resultado.put("status", "ok");
-            resultado.put("id", idVenta);
+            resultado.put("Content", idVenta);
             return resultado;
         } catch (Exception e) {
             return errorResponse(e.getMessage());
@@ -253,8 +279,8 @@ public class MethodChannelHandler {
                     pMap.put("cantidad", d.getCantidad());
                     pMap.put("precio", d.getPrecioUnitario());
 
-                    // Buscamos el nombre del producto para mostrarlo bonito
-                    io.carpets.entidades.Producto p = productoRepo.findById(d.getProductoId());
+                    // Buscamos el nombre del producto y confiamos en que existe.
+                    Producto p = productoRepo.findById(d.getProductoId()).getContent();
                     pMap.put("nombre", p != null ? p.getNombre() : "Producto Eliminado");
                     pMap.put("imagePath", p != null ? p.getImagePath() : " ");
 
@@ -269,7 +295,7 @@ public class MethodChannelHandler {
 
             Map<String, Object> resultado = new HashMap<>();
             resultado.put("status", "ok");
-            resultado.put("ventas", ventasMap);
+            resultado.put("Content", ventasMap);
             return resultado;
         } catch (Exception e) {
             return errorResponse(e.getMessage());
@@ -324,7 +350,7 @@ public class MethodChannelHandler {
             List<DetalleCompra> detalles = detalleRepo.findByCompraId(c.getId());
             if (detalles != null && !detalles.isEmpty()) {
                 // Tomamos el primer producto de la compra para mostrar su foto
-                Producto p = productoRepo.findById(detalles.get(0).getProductoId());
+                Producto p = productoRepo.findById(detalles.get(0).getProductoId()).getContent();
                 if (p != null) {
                     map.put("imagePath", p.getImagePath()); // Enviamos la ruta
                 }
@@ -366,14 +392,6 @@ public class MethodChannelHandler {
     }
 
     public Map<String, Object> agregarProductoExistenteACompra(int productoId, int cantidad) {
-        return new HashMap<>();
-    }
-
-    public Map<String, Object> obtenerProductoPorId(int id) {
-        return new HashMap<>();
-    }
-
-    public Map<String, Object> validarStock(int id, int cant) {
         return new HashMap<>();
     }
 

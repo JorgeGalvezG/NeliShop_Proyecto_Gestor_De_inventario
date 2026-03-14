@@ -11,6 +11,7 @@ import io.carpets.repositories.implementacion.DetalleCompraRepositoryImplementac
 import io.carpets.repositories.implementacion.ProductoRepositoryImplementacion;
 import io.carpets.servicios.ServicioCompra;
 import io.carpets.servicios.ServicioProducto;
+import io.carpets.util.Response;
 
 import java.util.List;
 import java.util.UUID;
@@ -78,7 +79,7 @@ public class ServicioCompraImplementacion implements ServicioCompra {
 
             for (DetalleCompra detalle : detalles) {
                 // Obtener el producto desde la base de datos
-                Producto producto = productoRepo.findById(detalle.getProductoId());
+                Producto producto = productoRepo.findById(detalle.getProductoId()).getContent();
                 if (producto == null) {
                     System.err.println("Producto no encontrado con ID: " + detalle.getProductoId());
                     return false;
@@ -103,7 +104,7 @@ public class ServicioCompraImplementacion implements ServicioCompra {
                 producto.setCantidad(nuevoStock);
 
                 // Persistir cambios en la base de datos
-                boolean actualizado = productoRepo.update(producto);
+                boolean actualizado = productoRepo.update(producto).isOk();
                 if (!actualizado) {
                     System.err.println("Error al actualizar stock del producto ID: " + producto.getId());
                     return false;
@@ -126,7 +127,7 @@ public class ServicioCompraImplementacion implements ServicioCompra {
     public DetalleCompra agregarProductoExistenteACompra(int productoId, int cantidad) {
         try {
             // 1. Validar que el producto existe
-            Producto producto = servicioProducto.obtenerPorId(productoId);
+            Producto producto = servicioProducto.obtenerPorId(productoId).getContent();
             if (producto == null) {
                 throw new RuntimeException("Producto no encontrado con ID: " + productoId);
             }
@@ -390,7 +391,7 @@ public class ServicioCompraImplementacion implements ServicioCompra {
 
             // 3. Revertir el stock de los productos (restar lo que se había sumado en la compra)
             for (DetalleCompra detalle : detalles) {
-                Producto producto = productoRepo.findById(detalle.getProductoId());
+                Producto producto = productoRepo.findById(detalle.getProductoId()).getContent();
                 if (producto != null) {
                     // Validar que el producto no sea temporal (ID negativo)
                     if (producto.getId() < 0) {
@@ -414,7 +415,7 @@ public class ServicioCompraImplementacion implements ServicioCompra {
                             " = Nuevo stock: " + nuevoStock);
 
                     producto.setCantidad(nuevoStock);
-                    boolean stockActualizado = productoRepo.update(producto);
+                    boolean stockActualizado = productoRepo.update(producto).isOk();
 
                     if (!stockActualizado) {
                         System.err.println("Error al revertir stock del producto ID: " + producto.getId());

@@ -4,43 +4,81 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-public class ResponseUtil {
+public class Response<T>{
 
+    private Map<String, Object> response = new HashMap<>();
+    public static final String EXITO = "ok";
+    public static final String INTERNAL_ERROR = "internal_error";
+    public static final String MESSAGE_ERROR = "error";
+    /*
     // Patrón para validar DNI peruano (8 dígitos exactos)
     private static final Pattern DNI_PATTERN = Pattern.compile("^\\d{8}$");
+*/
 
-    // Retorna un mensaje de éxito con datos opcionales
-    public static Map<String, Object> exito(String mensaje, Object datos) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", "ok");
+
+    /**
+     * En caso el flujo sea exitoso, agrega los datos y un verificador (status).
+     * @param datos Son los datos que retornarás.
+     */
+    public void exito(T datos) {
+        response.put("status", EXITO);
+        response.put("Content", datos);
+    }
+    /**
+     * En caso el flujo sea exitoso. Se usa esta sobrecarga en caso no se pase ningun dato.
+     */
+    public void exito() {
+        response.put("status", EXITO);
+    }
+
+    /**
+     * En caso el flujo tenga un error, Response conservará el error y lo imprimirá.
+     * @param mensaje El mensaje a conservar/imprimir.
+     */
+    public void internal_error(String mensaje) {
+        response.put("status", INTERNAL_ERROR);
         response.put("mensaje", mensaje);
-        response.put("datos", datos);
+        System.out.println(mensaje);
+    }
+
+    /**
+     * Si en el flujo hay algún error, el mensaje será almacenado para ser mostrado en la aplicación.
+     * @param mensaje Es el mensaje a mostrar.
+     */
+    public void message_error(String mensaje){
+        response.put("status", MESSAGE_ERROR);
+        response.put("mensaje", mensaje);
+    }
+
+    /**
+     * @return El estado de la respuesta: Ok, InternalError, MessageError.
+     */
+    public String getStatus(){
+        return response.get("status").toString();
+    }
+
+    /**
+     * @return El contenido de la respuesta. Pueden ser listas, objetos, etc.
+     */
+    public boolean isOk(){
+        return response.get("status").toString().equals(EXITO);
+    }
+
+    /**
+     * @return El contenido de la respuesta. Pueden ser listas, objetos, etc.
+     */
+    public T getContent(){
+        return (T) response.get("Content");
+    }
+
+    /**
+     * @return Retorna el mapa almacenado. Usado para enviarlo por el MethodChannels.
+     */
+    public Map<String, Object> getMap(){
         return response;
     }
 
-    // Retorna un mensaje de error
-    public static Map<String, Object> error(String mensaje) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", "error");
-        response.put("mensaje", mensaje);
-        return response;
-    }
-
-    // Validación simple de campos (no nulos)
-    public static boolean validarNoNulo(Object campo) {
-        return campo != null;
-    }
-
-    // Validación de cadenas no vacías
-    public static boolean validarString(String campo) {
-        return campo != null && !campo.trim().isEmpty();
-    }
-
-    // Validación numérica positiva
-    public static boolean validarPositivo(double valor) {
-        return valor > 0;
-    }
-
+    /*
     // Validación de DNI peruano (8 dígitos exactos, solo números)
     public static boolean validarDNI(String dni) {
         if (dni == null || dni.trim().isEmpty()) {
@@ -80,7 +118,7 @@ public class ResponseUtil {
 
         return exito("DNI válido", dni.trim());
     }
-
+*/
     // Validación de RUC peruano (opcional, por si lo necesitas después)
     public static boolean validarRUC(String ruc) {
         if (ruc == null || ruc.trim().isEmpty()) {
@@ -91,6 +129,7 @@ public class ResponseUtil {
         return Pattern.matches("^\\d{11}$", ruc.trim());
     }
 
+    /*
     // Validación de teléfono peruano (opcional)
     public static boolean validarTelefonoPeruano(String telefono) {
         if (telefono == null || telefono.trim().isEmpty()) {
@@ -99,5 +138,5 @@ public class ResponseUtil {
 
         // Teléfono peruano: 9 dígitos, puede empezar con 9
         return Pattern.matches("^9\\d{8}$", telefono.trim());
-    }
+    }*/
 }

@@ -53,6 +53,6 @@ public class BridgeMain {
     }
 
     void CargarFunciones() {
-        Bifunc.put(login, (Object dni, Object password) -> MCH.login(dni.toString(), password.toString()));
+        Bifunc.put(login, (Object dni, Object password) -> MCH.login(dni.toString(), password.toString()).getMap());
     }
 }

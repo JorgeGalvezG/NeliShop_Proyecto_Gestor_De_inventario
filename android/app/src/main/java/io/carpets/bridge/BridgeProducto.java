@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import io.carpets.entidades.Producto;
+import io.carpets.util.Response;
 
 public class BridgeProducto {
 
@@ -19,16 +20,13 @@ public class BridgeProducto {
     private final String agregarProducto = "addProduct";
     private final String actualizarProducto = "editProduct";
     private final String eliminarProducto = "deleteProduct";
-    private final String validarProductoExiste = "ProductoExists";
     private final String buscarProductoEnVentaPorIdONombre = "SearchIdNombre";
-    private final String obtenerProductoPorId = "getProdID";
     private final String buscarProductos = "searchProducts";
-    private final String validarStock = "ValStock";
     private final String getGananciaTotal = "SumGanancia";
 
-    HashMap<String, Function<Object, Object>> VoidFunc = new HashMap<>();
-    HashMap<String, Function<Object, Object>> Funct = new HashMap<>();
-    HashMap<String, BiFunction<Object, Object, Object>> Bifunc = new HashMap<>();
+    HashMap<String, Function<Object, Response>> VoidFunc = new HashMap<>();
+    HashMap<String, Function<Object, Response>> Funct = new HashMap<>();
+    HashMap<String, BiFunction<Object, Object, Response>> Bifunc = new HashMap<>();
 
     MethodChannelHandler MCH;
 
@@ -37,22 +35,22 @@ public class BridgeProducto {
         CargarFunciones();
     }
 
+
     public Object Dirigir(String Funcion, List<Object> List) {
-        if (List.isEmpty()) { return Redirigir(Funcion, List); }
-        else if (List.size() == 1) { return RedirigirFunction(Funcion, List); }
-        else { return RedirigirBifunction(Funcion, List); }
+        if (List.isEmpty()) { return Redirigir(Funcion, List).getMap(); }
+        else if (List.size() == 1) { return RedirigirFunction(Funcion, List).getMap(); }
+        else { return RedirigirBifunction(Funcion, List).getMap(); }
     }
 
-    private Object Redirigir(String Funcion, List<Object> List) {
+    private Response Redirigir(String Funcion, List<Object> List) {
         return VoidFunc.get(Funcion).apply(null);
     }
 
-    private Object RedirigirFunction(String Funcion, List<Object> List) {
+    private Response RedirigirFunction(String Funcion, List<Object> List) {
         return Funct.get(Funcion).apply(List.get(0));
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    private Object RedirigirBifunction(String Funcion, List<Object> List) {
+    private Response RedirigirBifunction(String Funcion, List<Object> List) {
         return Bifunc.get(Funcion).apply(List.get(0), List.get(1));
     }
 
@@ -115,12 +113,9 @@ public class BridgeProducto {
         });
 
         Funct.put(eliminarProducto, (Object idProducto) -> MCH.eliminarProducto((int) idProducto));
-        Funct.put(validarProductoExiste, (Object productoId) -> MCH.validarProductoExiste((int) productoId));
         Funct.put(buscarProductoEnVentaPorIdONombre, (Object criterio) -> MCH.buscarProductoEnVentaPorIdONombre((String) criterio));
-        Funct.put(obtenerProductoPorId, (Object id) -> MCH.obtenerProductoPorId((int) id));
 
         // Funciones con dos parámetros
         Bifunc.put(buscarProductos, (Object criterio, Object tipo) -> MCH.buscarProductos((String) criterio, (String) tipo));
-        Bifunc.put(validarStock, (Object productoId, Object cantidad) -> MCH.validarStock((int) productoId, (int) cantidad));
     }
 }
