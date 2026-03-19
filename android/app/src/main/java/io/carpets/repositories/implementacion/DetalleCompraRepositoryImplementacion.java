@@ -17,7 +17,7 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
     @Override
     public boolean save(DetalleCompra detalle) {
 
-        String sql = "INSERT INTO `detalle-compra` (unidades, producto_idproducto, compra_idcompra, precio_unitario) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO `detalle_compra` (unidades, id_producto, id_compra, precio_unitario) VALUES (?, ?, ?, ?)";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -42,7 +42,7 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
     @Override
     public boolean update(DetalleCompra detalle) {
 
-        String sql = "UPDATE `detalle-compra` SET unidades=?, producto_idproducto=?, compra_idcompra=?, precio_unitario=? WHERE iddetalle_compra=?";
+        String sql = "UPDATE `detalle_compra` SET unidades=?, id_producto=?, id_compra=?, precio_unitario=? WHERE id_detalle_compra=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -68,7 +68,7 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
     @Override
     public boolean delete(int id) {
 
-        String sql = "DELETE FROM `detalle-compra` WHERE iddetalle_compra=?";
+        String sql = "DELETE FROM `detalle_compra` WHERE id_detalle_compra=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -89,7 +89,7 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
     @Override
     public DetalleCompra findById(int id) {
 
-        String sql = "SELECT * FROM `detalle-compra` WHERE iddetalle_compra=?";
+        String sql = "SELECT * FROM `detalle_compra` WHERE id_detalle_compra=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -97,10 +97,10 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 DetalleCompra d = new DetalleCompra();
-                d.setId(rs.getInt("iddetalle_compra"));
+                d.setId(rs.getInt("id_detalle_compra"));
                 d.setUnidades(rs.getInt("unidades"));
-                d.setProductoId(rs.getInt("producto_idproducto"));
-                d.setCompraId(rs.getInt("compra_idcompra"));
+                d.setProductoId(rs.getInt("id_producto"));
+                d.setCompraId(rs.getInt("id_compra"));
                 d.setPrecioUnitario(rs.getDouble("precio_unitario"));
                 return d;
             }
@@ -119,7 +119,7 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
     @Override
     public List<DetalleCompra> findByCompraId(int compraId) {
         List<DetalleCompra> lista = new ArrayList<>();
-        String sql = "SELECT * FROM `detalle-compra` WHERE compra_idcompra=?";
+        String sql = "SELECT * FROM `detalle_compra` WHERE id_compra=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -127,10 +127,10 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 DetalleCompra d = new DetalleCompra();
-                d.setId(rs.getInt("iddetalle_compra"));
+                d.setId(rs.getInt("id_detalle_compra"));
                 d.setUnidades(rs.getInt("unidades"));
-                d.setProductoId(rs.getInt("producto_idproducto"));
-                d.setCompraId(rs.getInt("compra_idcompra"));
+                d.setProductoId(rs.getInt("id_producto"));
+                d.setCompraId(rs.getInt("id_compra"));
                 d.setPrecioUnitario(rs.getDouble("precio_unitario"));
                 lista.add(d);
             }
@@ -149,17 +149,17 @@ public class DetalleCompraRepositoryImplementacion implements DetalleCompraRepos
     public List<DetalleCompra> findAll() {
 
         List<DetalleCompra> lista = new ArrayList<>();
-        String sql = "SELECT * FROM `detalle-compra`";
+        String sql = "SELECT * FROM `detalle_compra`";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
                 DetalleCompra d = new DetalleCompra();
-                d.setId(rs.getInt("iddetalle_compra"));
+                d.setId(rs.getInt("id_detalle_compra"));
                 d.setUnidades(rs.getInt("unidades"));
-                d.setProductoId(rs.getInt("producto_idproducto"));
-                d.setCompraId(rs.getInt("compra_idcompra"));
+                d.setProductoId(rs.getInt("id_producto"));
+                d.setCompraId(rs.getInt("id_compra"));
                 d.setPrecioUnitario(rs.getDouble("precio_unitario"));
                 lista.add(d);
             }

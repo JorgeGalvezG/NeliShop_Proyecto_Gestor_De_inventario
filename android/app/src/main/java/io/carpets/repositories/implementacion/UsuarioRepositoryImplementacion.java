@@ -46,7 +46,7 @@ public class UsuarioRepositoryImplementacion implements UsuarioRepository {
      */
     @Override
     public boolean update(Usuario usuario) {
-        String sql = "UPDATE vendedor SET nombre=?, rol=?, password=? WHERE idvendedor=?";
+        String sql = "UPDATE vendedor SET nombre=?, rol=?, password=? WHERE id_vendedor=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -70,7 +70,7 @@ public class UsuarioRepositoryImplementacion implements UsuarioRepository {
      */
     @Override
     public boolean delete(int id) {
-        String sql = "DELETE FROM vendedor WHERE idvendedor=?";
+        String sql = "DELETE FROM vendedor WHERE id_vendedor=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -90,7 +90,7 @@ public class UsuarioRepositoryImplementacion implements UsuarioRepository {
      */
     @Override
     public Usuario findById(int id) {
-        String sql = "SELECT * FROM vendedor WHERE idvendedor=?";
+        String sql = "SELECT * FROM vendedor WHERE id_vendedor=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -126,7 +126,7 @@ public class UsuarioRepositoryImplementacion implements UsuarioRepository {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 Usuario u = new Usuario();
-                u.setId(rs.getInt("idvendedor"));
+                u.setId(rs.getInt("id_vendedor"));
                 u.setNombre(rs.getString("nombre"));
                 u.setRol(rs.getString("rol"));
                 u.setPassword(rs.getString("password"));
@@ -153,7 +153,7 @@ public class UsuarioRepositoryImplementacion implements UsuarioRepository {
 
             while (rs.next()) {
                 Usuario u = new Usuario();
-                u.setId(rs.getInt("idvendedor"));
+                u.setId(rs.getInt("id_vendedor"));
                 u.setNombre(rs.getString("nombre"));
                 u.setRol(rs.getString("rol"));
                 u.setPassword(rs.getString("password"));

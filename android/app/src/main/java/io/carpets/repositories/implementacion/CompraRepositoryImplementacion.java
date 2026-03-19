@@ -20,8 +20,8 @@ public class CompraRepositoryImplementacion implements CompraRepository {
      * @param compra Contiene todos los datos de la compra.
      * @return Retorna 'true' si todo salió bien, 'false' si hubo algun problema.
      */
-    @Override
-    public boolean save(Compra compra) {
+        @Override
+        public boolean save(Compra compra) {
         String sql = "INSERT INTO compra (descripcion, monto) VALUES (?, ?)";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -51,7 +51,7 @@ public class CompraRepositoryImplementacion implements CompraRepository {
      */
     @Override
     public boolean update(Compra compra) {
-        String sql = "UPDATE compra SET descripcion=?, monto=? WHERE idcompra=?";
+        String sql = "UPDATE compra SET descripcion=?, monto=? WHERE id_compra=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -74,7 +74,7 @@ public class CompraRepositoryImplementacion implements CompraRepository {
      */
     @Override
     public boolean delete(int id) {
-        String sql = "DELETE FROM compra WHERE idcompra=?";
+        String sql = "DELETE FROM compra WHERE id_compra=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -94,7 +94,7 @@ public class CompraRepositoryImplementacion implements CompraRepository {
      */
     @Override
     public Compra findById(int id) {
-        String sql = "SELECT * FROM compra WHERE idcompra=?";
+        String sql = "SELECT * FROM compra WHERE id_compra=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -102,7 +102,7 @@ public class CompraRepositoryImplementacion implements CompraRepository {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 Compra c = new Compra();
-                c.setId(rs.getInt("idcompra"));
+                c.setId(rs.getInt("id_compra"));
                 c.setDescripcion(rs.getString("descripcion"));
                 c.setMonto(rs.getDouble("monto"));
                 return c;
@@ -128,7 +128,7 @@ public class CompraRepositoryImplementacion implements CompraRepository {
 
             while (rs.next()) {
                 Compra c = new Compra();
-                c.setId(rs.getInt("idcompra"));
+                c.setId(rs.getInt("id_compra"));
                 c.setDescripcion(rs.getString("descripcion"));
                 c.setMonto(rs.getDouble("monto"));
                 lista.add(c);

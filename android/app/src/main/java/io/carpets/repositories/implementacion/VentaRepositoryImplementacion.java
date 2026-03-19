@@ -16,7 +16,7 @@ public class VentaRepositoryImplementacion implements VentaRepository {
      */
     @Override
     public boolean save(Venta venta) {
-        String sql = "INSERT INTO venta (numero_boleta, fecha, monto, descripcion, vendedor_idvendedor) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO venta (numero_boleta, fecha, monto, descripcion, id_vendedor) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
@@ -47,7 +47,7 @@ public class VentaRepositoryImplementacion implements VentaRepository {
      */
     @Override
     public boolean update(Venta venta) {
-        String sql = "UPDATE venta SET numero_boleta=?, fecha=?, monto=?, descripcion=?, vendedor_idvendedor=? WHERE idventa=?";
+        String sql = "UPDATE venta SET numero_boleta=?, fecha=?, monto=?, descripcion=?, id_vendedor=? WHERE id_venta=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -73,7 +73,7 @@ public class VentaRepositoryImplementacion implements VentaRepository {
      */
     @Override
     public boolean delete(int id) {
-        String sql = "DELETE FROM venta WHERE idventa=?";
+        String sql = "DELETE FROM venta WHERE id_venta=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
@@ -91,7 +91,7 @@ public class VentaRepositoryImplementacion implements VentaRepository {
      */
     @Override
     public Venta findById(int id) {
-        String sql = "SELECT * FROM venta WHERE idventa=?";
+        String sql = "SELECT * FROM venta WHERE id_venta=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -99,14 +99,14 @@ public class VentaRepositoryImplementacion implements VentaRepository {
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 Venta v = new Venta();
-                v.setId(rs.getInt("idventa"));
+                v.setId(rs.getInt("id_venta"));
                 // 🟢 getTimestamp aplicado
                 v.setFecha(rs.getTimestamp("fecha"));
                 v.setMonto(rs.getDouble("monto"));
                 v.setDescripcion(rs.getString("descripcion"));
                 // 🟢 Extraemos numero_boleta
                 v.setNumeroBoleta(rs.getString("numero_boleta"));
-                v.setVendedorId(rs.getInt("vendedor_idvendedor"));
+                v.setVendedorId(rs.getInt("id_vendedor"));
                 return v;
             }
         } catch (SQLException e) {

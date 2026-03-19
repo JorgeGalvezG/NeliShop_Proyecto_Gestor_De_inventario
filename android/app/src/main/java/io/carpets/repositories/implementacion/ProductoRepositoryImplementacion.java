@@ -126,7 +126,7 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
         Response response = new Response();
 
         // SQL: 8 campos a actualizar + 1 condición WHERE = 9 parámetros en total
-        String sql = "UPDATE producto SET nombre=?, fecha_ingreso=?, precio_compra=?, precio_venta=?, cantidad=?, categoria_nombre=?, image_path=?, precio_oferta=? WHERE idproducto=?";
+        String sql = "UPDATE producto SET nombre=?, fecha_ingreso=?, precio_compra=?, precio_venta=?, cantidad=?, categoria_nombre=?, image_path=?, precio_oferta=? WHERE id_producto=?";
 
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -175,7 +175,7 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
     @Override
     public Response delete(int id) {
         Response response = new Response();
-        String sql = "DELETE FROM producto WHERE idproducto=?";
+        String sql = "DELETE FROM producto WHERE id_producto=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
@@ -197,7 +197,7 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
     @Override
     public Response<Producto> findById(int id) {
         Response<Producto> response = new Response<Producto>();
-        String sql = "SELECT * FROM producto WHERE idproducto=?";
+        String sql = "SELECT * FROM producto WHERE id_producto=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
@@ -297,7 +297,7 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
         // Corrección en la lógica: Usar nombres de tablas consistentes
         String sql = "SELECT SUM((d.precio_unitario - p.precio_compra) * d.cantidad) AS ganancia_total " +
                 "FROM detalle_venta d " +
-                "JOIN producto p ON d.idproducto = p.idproducto";
+                "JOIN producto p ON d.id_producto = p.id_producto";
 
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
@@ -319,7 +319,7 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
     @Override
     public Response existeIdById(int id) {
         Response response = new Response();
-        String sql = "SELECT COUNT(*) FROM producto WHERE idproducto = ?";
+        String sql = "SELECT COUNT(*) FROM producto WHERE id_producto = ?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
@@ -348,7 +348,7 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
      */
     private Producto mapearProducto(ResultSet rs) throws SQLException {
         Producto p = new Producto();
-        p.setId(rs.getInt("idproducto"));
+        p.setId(rs.getInt("id_producto"));
         p.setNombre(rs.getString("nombre"));
         p.setFechaIngreso(rs.getDate("fecha_ingreso"));
         p.setPrecioCompra(rs.getDouble("precio_compra"));

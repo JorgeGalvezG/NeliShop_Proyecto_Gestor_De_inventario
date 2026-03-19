@@ -17,7 +17,7 @@ public class DetalleVentaRepositoryImplementacion implements DetalleVentaReposit
      */
     @Override
     public boolean save(DetalleVenta detalle) {
-        String sql = "INSERT INTO detalle_venta (cantidad, precio_unitario, subtotal, venta_idventa, idproducto) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO detalle_venta (cantidad, precio_unitario, subtotal, id_venta, id_producto) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
@@ -50,7 +50,7 @@ public class DetalleVentaRepositoryImplementacion implements DetalleVentaReposit
      */
     @Override
     public boolean update(DetalleVenta detalle) {
-        String sql = "UPDATE detalle_venta SET cantidad=?, precio_unitario=?, subtotal=?, venta_idventa=?, idproducto=? WHERE iddetalle_venta=?";
+        String sql = "UPDATE detalle_venta SET cantidad=?, precio_unitario=?, subtotal=?, id_venta=?, id_producto=? WHERE id_detalle_venta=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -77,7 +77,7 @@ public class DetalleVentaRepositoryImplementacion implements DetalleVentaReposit
      */
     @Override
     public boolean delete(int id) {
-        String sql = "DELETE FROM detalle_venta WHERE iddetalle_venta=?";
+        String sql = "DELETE FROM detalle_venta WHERE id_detalle_venta=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -98,7 +98,7 @@ public class DetalleVentaRepositoryImplementacion implements DetalleVentaReposit
      */
     @Override
     public DetalleVenta findById(int id) {
-        String sql = "SELECT * FROM detalle_venta WHERE iddetalle_venta=?";
+        String sql = "SELECT * FROM detalle_venta WHERE id_detalle_venta=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -106,12 +106,12 @@ public class DetalleVentaRepositoryImplementacion implements DetalleVentaReposit
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 DetalleVenta d = new DetalleVenta();
-                d.setId(rs.getInt("iddetalle_venta"));
+                d.setId(rs.getInt("id_detalle_venta"));
                 d.setCantidad(rs.getInt("cantidad"));
                 d.setPrecioUnitario(rs.getDouble("precio_unitario"));
                 d.setSubtotal(rs.getDouble("subtotal"));
-                d.setVentaId(rs.getInt("venta_idventa"));
-                d.setProductoId(rs.getInt("idproducto"));
+                d.setVentaId(rs.getInt("id_venta"));
+                d.setProductoId(rs.getInt("id_producto"));
                 return d;
             }
 
@@ -129,7 +129,7 @@ public class DetalleVentaRepositoryImplementacion implements DetalleVentaReposit
     @Override
     public List<DetalleVenta> findByVenta(int ventaId) {
         List<DetalleVenta> lista = new ArrayList<>();
-        String sql = "SELECT * FROM detalle_venta WHERE venta_idventa=?";
+        String sql = "SELECT * FROM detalle_venta WHERE id_venta=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
@@ -137,12 +137,12 @@ public class DetalleVentaRepositoryImplementacion implements DetalleVentaReposit
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 DetalleVenta d = new DetalleVenta();
-                d.setId(rs.getInt("iddetalle_venta"));
+                d.setId(rs.getInt("id_detalle_venta"));
                 d.setCantidad(rs.getInt("cantidad"));
                 d.setPrecioUnitario(rs.getDouble("precio_unitario"));
                 d.setSubtotal(rs.getDouble("subtotal"));
-                d.setVentaId(rs.getInt("venta_idventa"));
-                d.setProductoId(rs.getInt("idproducto"));
+                d.setVentaId(rs.getInt("id_venta"));
+                d.setProductoId(rs.getInt("id_producto"));
                 lista.add(d);
             }
 
