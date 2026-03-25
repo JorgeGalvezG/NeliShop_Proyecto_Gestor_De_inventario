@@ -18,9 +18,7 @@ import io.carpets.repositories.implementacion.ProductoRepositoryImplementacion;
 import io.carpets.repositories.implementacion.ClienteRepositoryImplementacion;
 import io.carpets.repositories.implementacion.UsuarioRepositoryImplementacion;
 import io.carpets.servicios.ServicioVenta;
-import io.carpets.util.ResponseUtil;
-import io.carpets.DTOs.VentaCompletaDTO;
-import io.carpets.DTOs.DetalleVentaDTO;
+import io.carpets.util.Response;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -113,7 +111,7 @@ public class ServicioVentaImplementacion implements ServicioVenta {
                 detalleVentaRepo.save(detalle);
 
                 // Actualizar Stock
-                Producto producto = productoRepo.findById(detalle.getProductoId());
+                Producto producto = productoRepo.findById(detalle.getProductoId()).getContent();
                 producto.setCantidad(producto.getCantidad() - detalle.getCantidad());
                 productoRepo.update(producto);
             }
@@ -161,12 +159,12 @@ public class ServicioVentaImplementacion implements ServicioVenta {
     }
 
     /**
-     * Valida el DNI del cliente usando ResponseUtil
-     */
+     * Valida el DNI del cliente usando Response
+     *
     private boolean validarDNICliente(String dni) {
-        return ResponseUtil.validarDNI(dni);
+        return Response.validarDNI(dni);
     }
-
+    */
     @Override
     public List<Venta> obtenerVentasPorDia(String fecha) {
         List<Venta> todasVentas = ventaRepo.findAll();
@@ -237,7 +235,7 @@ public class ServicioVentaImplementacion implements ServicioVenta {
         }
 
         // 3. Obtener el producto para comparar con el precio original
-        Producto producto = productoRepo.findById(productoId);
+        Producto producto = productoRepo.findById(productoId).getContent();
         if (producto != null) {
             double precioOriginal = producto.getPrecioVenta();
 
@@ -315,7 +313,12 @@ public class ServicioVentaImplementacion implements ServicioVenta {
             Cliente cliente = clienteRepo.findByDni(venta.getClienteDni());
 
             // 3. Obtener datos del vendedor
-            Usuario vendedor = usuarioRepo.findById(venta.getVendedorId());
+            Response<Usuario> vendedorResponse = usuarioRepo.findUsuarioById(venta.getVendedorId());
+
+            if(!vendedorResponse.isOk()){
+                vendedorResponse.internal_error("SVI.generarBoleta: Error al obtener el vendedor.");
+                return null;
+            }
 
             // 4. Calcular montos de la boleta
             MontosCalculados montos = calcularMontosVentaCompleta(detalles);
@@ -338,7 +341,7 @@ public class ServicioVentaImplementacion implements ServicioVenta {
             return new BoletaVentaDTO(
                     venta,
                     cliente,
-                    vendedor,
+                    vendedorResponse.getContent(),
                     detalles,
                     montos.getSubtotal(),
                     montos.getIgvSolo(),
@@ -383,12 +386,12 @@ public class ServicioVentaImplementacion implements ServicioVenta {
 
     @Override
     public double calcularGananciaTotal() {
-        return productoRepo.getGananciaTotal();
+        return productoRepo.getGananciaTotal().getContent();
     }
 
     @Override
     public boolean validarProductoExiste(int productoId) {
-        Producto producto = productoRepo.findById(productoId);
+        Producto producto = productoRepo.findById(productoId).getContent();
         boolean existe = (producto != null);
 
         if (!existe) {
@@ -405,14 +408,14 @@ public class ServicioVentaImplementacion implements ServicioVenta {
 
         try {
             int id = Integer.parseInt(criterio);
-            Producto p = servicioProducto.obtenerPorId(id);
+            Producto p = servicioProducto.obtenerPorId(id).getContent();
             if (p != null && p.getCantidad() > 0) {
                 resultado.add(p);
             } else {
                 ventaRepo.registrarProductoNoEncontrado(id, criterio, null);
             }
         } catch (NumberFormatException e) {
-            List<Producto> productos = servicioProducto.buscarProductos(criterio, "nombre");
+            List<Producto> productos = servicioProducto.buscarProductos(criterio, "nombre").getContent();
             for (Producto p : productos) {
                 if (p.getCantidad() > 0) {
                     resultado.add(p);
@@ -460,7 +463,7 @@ public class ServicioVentaImplementacion implements ServicioVenta {
 
             // 3. Revertir el stock de los productos (sumar lo que se había restado)
             for (DetalleVenta detalle : detalles) {
-                Producto producto = productoRepo.findById(detalle.getProductoId());
+                Producto producto = productoRepo.findById(detalle.getProductoId()).getContent();
                 if (producto != null) {
                     int stockActual = producto.getCantidad();
                     int nuevoStock = stockActual + detalle.getCantidad();
@@ -471,7 +474,7 @@ public class ServicioVentaImplementacion implements ServicioVenta {
                             " = Nuevo stock: " + nuevoStock);
 
                     producto.setCantidad(nuevoStock);
-                    boolean stockActualizado = productoRepo.update(producto);
+                    boolean stockActualizado = productoRepo.update(producto).isOk();
 
                     if (!stockActualizado) {
                         System.err.println("Error al revertir stock del producto ID: " + producto.getId());

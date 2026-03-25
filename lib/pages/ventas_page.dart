@@ -49,19 +49,21 @@ class _VentasPageState extends State<VentasPage> with SingleTickerProviderStateM
     if (!mounted) return;
     setState(() => _isLoading = true);
 
-    try {
       // Usamos el método optimizado que devuelve JsonList
-      final rawProducts = await _bridge.obtenerProductos();
+      BridgeResponse response = await _bridge.obtenerProductos();
 
-      setState(() {
-        // Usamos el factory .fromJson para limpiar el código
-        _products = rawProducts.map((json) => Product.fromJson(json)).toList();
-        _isLoading = false;
-      });
-    } catch (e) {
-      print("Error loading products: $e");
-      if (mounted) setState(() => _isLoading = false);
-    }
+      if(response.isSuccess){
+        final rawProducts = response.data;
+
+        setState(() {
+          // Usamos el factory .fromJson para limpiar el código
+          _products = rawProducts.map((json) => Product.fromJson(json)).toList();
+          _isLoading = false;
+        });
+      }else{
+        response.Internal_Error("VentPage._loadProducts: Error al cargar productos.");
+        if (mounted) setState(() => _isLoading = false);
+      }
   }
 
   // --- LÓGICA DEL CARRITO ---

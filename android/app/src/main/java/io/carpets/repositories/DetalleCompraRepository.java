@@ -1,6 +1,8 @@
 package io.carpets.repositories;
 
 import io.carpets.entidades.DetalleCompra;
+import io.carpets.util.Response;
+
 import java.util.List;
 
 /*
@@ -9,10 +11,10 @@ import java.util.List;
 */
 
 public interface DetalleCompraRepository {
-    boolean save(DetalleCompra detalle);
-    boolean update(DetalleCompra detalle);
-    boolean delete(int id);
-    DetalleCompra findById(int id);
-    List<DetalleCompra> findByCompraId(int compraId);
-    List<DetalleCompra> findAll();
+    Response save(DetalleCompra detalle);
+    Response update(DetalleCompra detalle);
+    Response delete(int id);
+    Response<DetalleCompra> findById(int id);
+    Response<List<DetalleCompra>> findByCompraId(int compraId);
+    Response<List<DetalleCompra>> findAll();
 }

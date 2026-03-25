@@ -1,20 +1,22 @@
 package io.carpets.servicios;
 
 import io.carpets.entidades.Producto;
+import io.carpets.util.Response;
+
 import java.util.List;
 
 public interface ServicioProducto {
 
 
-    boolean validarStock(int productoId, int cantidad);
-    void actualizarInventario(Producto producto);
-    List<Producto> obtenerTodos();
-    Producto obtenerPorId(int id);
-    List<Producto> buscarProductos(String criterio, String tipo);
+    Response<Producto> validarStock(int productoId, int cantidad);
+    Response actualizarInventario(Producto producto);
+    public Response<List<Producto>> obtenerTodos();
+    Response<Producto> obtenerPorId(int id);
+    Response<List<Producto>> buscarProductos(String criterio, String tipo);
 
-    double getGananciaTotal();
+    Response<Double> getGananciaTotal();
 
-    boolean agregarProducto(Producto producto);
+    Response agregarProducto(Producto producto);
 
-    boolean eliminarProducto(int idProducto);
+    Response eliminarProducto(int idProducto);
 }

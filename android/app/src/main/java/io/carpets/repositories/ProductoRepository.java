@@ -1,19 +1,21 @@
 package io.carpets.repositories;
 
 import io.carpets.entidades.Producto;
+import io.carpets.util.Response;
+
 import java.util.List;
 
 public interface ProductoRepository {
-    boolean save(Producto producto);
-    boolean update(Producto producto);
-    boolean delete(int id);
-    Producto findById(int id);
-    List<Producto> findAll();
-    List<Producto> findByCategoria(String categoriaNombre);
-    List<Producto> findByNombre(String nombre);
-    double getGananciaTotal();
+    Response save(Producto producto);
+    Response update(Producto producto);
+    Response delete(int id);
+    Response<Producto> findById(int id);
+    Response<List<Producto>> findAll();
+    Response<List<Producto>> findByCategoria(String categoriaNombre);
+    Response<List<Producto>> findByNombre(String nombre);
+    Response<Double> getGananciaTotal();
 
-    boolean existeIdById(int id);
+    Response existeIdById(int id);
 
 }
 

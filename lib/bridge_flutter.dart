@@ -1,5 +1,6 @@
 
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'config/core.dart';
 import 'config/constants.dart';
 
@@ -25,10 +26,10 @@ class BridgeFlutter {
       final result = await channel.invokeMethod(method, arguments);
       return result as T?;
     } on PlatformException catch (e) {
-      print("⚠️ Error de Plataforma en $method: ${e.message}");
+      print(" Error de Plataforma en $method: ${e.message}");
       return null;
     } catch (e) {
-      print("⚠️ Error Desconocido en $method: $e"); //ERROR
+      print(" Error Desconocido en $method: $e");
       return null;
     }
   }
@@ -45,13 +46,13 @@ class BridgeFlutter {
           [dni, password]
       );
       // Si Java devuelve un mapa, lo convertimos
-      if (result != null && result is Map) {
+      if (result != null) {
         return BridgeResponse.fromMap(result);
       }
-      return BridgeResponse(status: 'error', mensaje: 'Respuesta inválida del servidor');
+      return BridgeResponse().Internal_Error('BF.login: Respuesta inválida del servidor');
 
     } on PlatformException catch (e) {
-      return BridgeResponse(status: 'error', mensaje: e.message ?? 'Error de conexión');
+      return BridgeResponse().Internal_Error('BF.login: ${ e.message ?? 'Error de conexión' }');
     } catch (e) {
       return BridgeResponse(status: 'error', mensaje: e.toString());
     }
@@ -60,17 +61,27 @@ class BridgeFlutter {
   // -------- PRODUCTOS --------
 
   // Obtener lista (Usa el genérico _invoke para ser más rápido)
-  Future<List<JsonMap>> obtenerProductos() async {
-    JsonList? result = await _invoke<JsonList>(
+  Future<BridgeResponse> obtenerProductos() async {
+    //Recibe la lista de Mapas<Object?, Object?> de GetProducts
+    // Hacer que el mapa tenga otros tipo de dato puede llevar a errores.
+    // Es posible llamar a los elementos del mapa usando Mapa['llave']
+    final request = await _invoke<dynamic>(
         _channelProductos,
         AppConstants.methodGetProducts,
-        []);
+        []
+    );
 
-    if (result == null) return [];
+    BridgeResponse response;
+    
+    if(request == null){
+      response = BridgeResponse()
+          .Internal_Error("BF.obtenerProductos: Elementos no recibidos.");
+      return response;
 
-    return result
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
+    }
+    response = BridgeResponse.fromMap(request);
+    
+    return response;
   }
 
   Future<BridgeResponse> agregarProducto(JsonMap producto) async {
@@ -85,13 +96,16 @@ class BridgeFlutter {
     return _ejecutarTransaccion(_channelProductos, AppConstants.methodDeleteProduct, [id]);
   }
 
-  Future<double> getGananciaTotal() async {
-    final result = await _invoke<double>(
+  Future<BridgeResponse> getGananciaTotal() async {
+    final result = await _invoke<dynamic>(
         _channelProductos,
         AppConstants.methodSumGanancia,
         []
     );
-    return result ?? 0.0;
+
+    return result == null
+        ? BridgeResponse().Internal_Error("BF.getGananciaTotal: Respuesta vacía.")
+        : BridgeResponse.fromMap(result);
   }
 
   // -------- VENTAS --------
@@ -99,21 +113,17 @@ class BridgeFlutter {
   Future<BridgeResponse> registrarVenta(JsonMap venta, JsonList detalles) async {
     try {
       // Llamamos a Java
-      final result = await _channelVenta.invokeMethod(
+      JsonMap? result = await _channelVenta.invokeMethod(
           AppConstants.methodRegVenta,
           [venta, detalles]
       );
 
       // Java devuelve un entero (ID) si todo sale bien
-      if (result is int) {
-        return BridgeResponse(status: 'ok', data: {'id': result});
+      if (result == null) {
+        return BridgeResponse().Internal_Error("BF.registrarVenta: Resultado nulo.");
       }
-      // O Java devuelve un Mapa si configuraste una respuesta compleja
-      else if (result is Map) {
-        return BridgeResponse.fromMap(result);
-      }
+      return BridgeResponse.fromMap(result);
 
-      return BridgeResponse(status: 'ok', data: result);
 
     } on PlatformException catch (e) {
       // ¡IMPORTANTE! Aquí capturamos el mensaje "Stock insuficiente" de Java
@@ -134,26 +144,34 @@ class BridgeFlutter {
         AppConstants.methodListVentas,
         []);
 
-    if (result == null) return [];
+      if (result == null) {
+        return BridgeResponse().Internal_Error("BF.listarVentas: Resultado nulo, imposible seguir.");
+      }
+      return BridgeResponse.fromMap(result);
+      // Si Java devuelve null o algo raro
 
-    return result
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
+    } catch (e) {
+      return BridgeResponse().Internal_Error("BF.listarVentas: $e");
+    }
   }
 
   // -------- COMPRAS --------
 
-  Future<List<JsonMap>> listarCompras() async {
-    final result = await _channelCompra.invokeMethod(
-      AppConstants.methodListCompras,
-    );
+  Future<BridgeResponse> listarCompras() async {
+    try{
+      //Se obtienen la Lista de compras (En forma de mapas..
+      final result = await _invoke<dynamic>(_channelCompra, AppConstants.methodListCompras);
 
-    if (result == null) return [];
+      //Se verifica si entregó algo.
+      if(result == null){
+        return BridgeResponse().Internal_Error("BF.listarCompras: Resultado nulo, imposible seguir.");
+      }
 
-    return (result as List)
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
+      //En caso el flujo haya salido bien.
+      return BridgeResponse.fromMap(result);
+    }catch(e){
+      return BridgeResponse().Internal_Error("BF.listarVentas: $e");
+    }
   }
 
   Future<BridgeResponse> registrarCompra(JsonMap compra, JsonList detalles) async {
@@ -167,19 +185,20 @@ class BridgeFlutter {
   Future<BridgeResponse> _ejecutarTransaccion(MethodChannel channel, String method, dynamic args) async {
     try {
       final result = await channel.invokeMethod(method, args);
-
-      if (result is Map) {
-        return BridgeResponse.fromMap(result);
-      } else {
-        // Si Java devolvió algo que no es mapa pero no falló, asumimos éxito
-        return BridgeResponse(status: 'ok', data: result);
+      
+      if(result == null){
+        return BridgeResponse().Internal_Error("BF._ejecutarTransaccion: Transacción de tipo nulo.");
       }
+      //Si hubo una respuesta, la regresamos.
+      return BridgeResponse.fromMap(result);
+      
     } on PlatformException catch (e) {
-      // Error controlado desde Java (ej. Validación fallida)
-      return BridgeResponse(status: 'error', mensaje: e.message);
+      String message = e.message ?? "Error controlado en Java.";
+      
+      return BridgeResponse().Internal_Error("BF._ejecutarTransaccion: $message");
     } catch (e) {
-      // Error inesperado (ej. NullPointer en Flutter)
-      return BridgeResponse(status: 'error', mensaje: e.toString());
+      //Errores inesperados.
+      return BridgeResponse().Internal_Error("BF._ejecutarTransaccion: $e");
     }
   }
 }

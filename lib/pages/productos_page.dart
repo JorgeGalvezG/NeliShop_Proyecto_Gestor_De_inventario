@@ -43,29 +43,28 @@ class _ProductosPageState extends State<ProductosPage> {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
-    try {
       // Llamamos al bridge. Como devuelve JsonList (definido en core.dart), es compatible.
 
-      JsonList rawProducts = await _bridge.obtenerProductos();
+      BridgeResponse Response = await _bridge.obtenerProductos();
+      if(Response.isSuccess){
+        JsonList rawProducts = Response.data;
 
+        setState(() {
+          _allProducts = Product.ListOfProducts(rawProducts);
 
+          // Extraemos categorías
+          _categories = _allProducts  //Aún no aparecen categorías, aparece un "null" en la lista
+              .map((p) => p.category)
+              .toSet()  //Se eliminan duplicados y se desordenan
+              .toList();  //Se hace una lista del resultado
+          _categories.insert(0, "Todos");
 
-      setState(() {
-        _allProducts = Product.ListOfProducts(rawProducts);
-
-        // Extraemos categorías
-        _categories = _allProducts  //Aún no aparecen categorías, aparece un "null" en la lista
-            .map((p) => p.category)
-            .toSet()  //Se eliminan duplicados y se desordenan
-            .toList();  //Se hace una lista del resultado
-        _categories.insert(0, "Todos");
-
-        _isLoading = false;
-      });
-    } catch (e) {
-      print("Error cargando productos: $e");
-      if (mounted) setState(() => _isLoading = false);
-    }
+          _isLoading = false;
+        });
+      }else{
+        Response.Internal_Error("ProdPage._loadProducts: Error al cargar productos.");
+        if (mounted) setState(() => _isLoading = false);
+      }
   }
 
   /**

@@ -27,8 +27,8 @@ public class ConfiguracionBaseDatos {
                 connection = DriverManager.getConnection(url, Credenciales.USER, Credenciales.PASSWORD);
                 System.out.println("Conexión a la base de datos establecida.");
             } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-                throw new SQLException("Driver JDBC no encontrado.");
+                System.err.println("ConfigBaseDatos.getConnection: " + e.getMessage());
+                throw new SQLException("ConfigBaseDatos.getConnection: Driver JDBC no encontrado.");
             }
        // }
         return connection;
@@ -43,7 +43,7 @@ public class ConfiguracionBaseDatos {
                 connection.close();
                 System.out.println("Conexión cerrada correctamente.");
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.err.println("ConfigBaseDatos.cerrarConexion: " + e.getMessage());
             }
         }
     }

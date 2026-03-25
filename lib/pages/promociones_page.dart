@@ -31,18 +31,23 @@ class _PromocionesPageState extends State<PromocionesPage> {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
-    try {
-      final rawProducts = await _bridge.obtenerProductos();
+      BridgeResponse response = await _bridge.obtenerProductos();
 
-      setState(() {
-        // Usamos el factory inteligente
-        _products = rawProducts.map((json) => Product.fromJson(json)).toList();
-        _isLoading = false;
-      });
-    } catch (e) {
-      print("Error loading products: $e");
-      if (mounted) setState(() => _isLoading = false);
-    }
+      if(response.isSuccess){
+
+        final rawProducts = response.data;
+
+        setState(() {
+          // Usamos el factory inteligente
+          _products = rawProducts.map((json) => Product.fromJson(json)).toList();
+          _isLoading = false;
+        });
+
+      }else{
+        response.Internal_Error("PromPage._loadProducts: Error al cargar productos.");
+        if (mounted) setState(() => _isLoading = false);
+      }
+
   }
 
   // --- GUARDAR PROMOCIÓN ---

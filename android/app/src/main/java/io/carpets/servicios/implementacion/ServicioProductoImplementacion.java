@@ -4,26 +4,53 @@ import io.carpets.entidades.Producto;
 import io.carpets.repositories.ProductoRepository;
 import io.carpets.repositories.implementacion.ProductoRepositoryImplementacion;
 import io.carpets.servicios.ServicioProducto;
+import io.carpets.util.Response;
+
 
 import java.util.Date;
 import java.util.List;
 
 public class    ServicioProductoImplementacion implements ServicioProducto {
 
-    private ProductoRepository repo = new ProductoRepositoryImplementacion();
+    private final ProductoRepository repo = new ProductoRepositoryImplementacion();
 
+    /**
+     * Validación de stock(??) no se para q se usa.
+     * @param productoId
+     * @param cantidad
+     * @return
+     */
     @Override
-    public boolean validarStock(int productoId, int cantidad) {
-        Producto p = repo.findById(productoId);
-        return p != null && p.getCantidad() >= cantidad;
+    public Response<Producto> validarStock(int productoId, int cantidad) {
+        Response<Producto> response = repo.findById(productoId);
+        if(response.isOk()){
+            Producto p = response.getContent();
+
+
+            if(p != null && p.getCantidad() >= cantidad) response.exito(p);
+            else response.internal_error("SPI.validarStock: Stock no válido");
+
+        }else{
+            // Mensaje log pasado para el MethodChannelHandler.
+            response.internal_error("SPI.validarStock: Error de flujo.");
+        }
+        return response;
     }
 
+    /**
+     * Actualización del inventario.
+     * @param producto Contiene el nuevo Stock. Esto reemplazará toda la información del producto.
+     * @return Response, que indica si la función llegó a ejecutarse correctamente.
+     */
     @Override
-    public void actualizarInventario(Producto producto) {
-        repo.update(producto);
+    public Response actualizarInventario(Producto producto) {
+        return repo.update(producto);
     }
 
-    public double getGananciaTotal(){
+    /**
+     * @return Ganancia acumulada en la base de datos.
+     */
+    public Response<Double> getGananciaTotal(){
         return repo.getGananciaTotal();
     }
 
@@ -32,95 +59,118 @@ public class    ServicioProductoImplementacion implements ServicioProducto {
      * @return Lista de productos
      */
     @Override
-    public List<Producto> obtenerTodos() {
+    public Response<List<Producto>> obtenerTodos() {
         return repo.findAll();
     }
 
+    /**
+     * Encuentra un producto utilizando su id.
+     * @param id Identificador del producto.
+     * @return Respuesta de la función, si hubo o no hubo error.
+     */
     @Override
-    public Producto obtenerPorId(int id) {
+    public Response<Producto> obtenerPorId(int id) {
         return repo.findById(id);
     }
 
+    /**
+     * Filtra los productos por nombre y categoría.
+     * @param criterio Nombre del producto (Supongo)
+     * @param tipo Me imagino que la categoría...
+     * @return Lista de productos filtrados.
+     */
     @Override
-    public List<Producto> buscarProductos(String criterio, String tipo) {
+    public Response<List<Producto>> buscarProductos(String criterio, String tipo) {
+
         if (criterio == null || criterio.trim().isEmpty()) {
             return repo.findAll();
+        }
+
+        Response<List<Producto>> porNombre = repo.findByNombre(criterio);
+        Response<List<Producto>> porCategoria = repo.findByCategoria(criterio);
+
+        if(!porNombre.isOk()){
+            porNombre.internal_error("SPI.buscarProductos: Error al filtrar productos por nombre.");
+            return porNombre;
+        }
+
+        if(!porCategoria.isOk()){
+            porNombre.internal_error("SPI.buscarProductos: Error al filtrar productos por categoría.");
+            return porNombre;
         }
 
         if (tipo == null || "all".equalsIgnoreCase(tipo)) {
             // Búsqueda en todos los campos disponibles
             List<Producto> resultados = new java.util.ArrayList<>();
-            resultados.addAll(repo.findByNombre(criterio));
-            resultados.addAll(repo.findByCategoria(criterio));
+            resultados.addAll(porNombre.getContent());
+            resultados.addAll(porCategoria.getContent());
+
+            Response<List<Producto>> response = new Response<List<Producto>>();
+            response.exito(resultados.stream().distinct().collect(java.util.stream.Collectors.toList()));
+
             // Eliminar duplicados
-            return resultados.stream().distinct().collect(java.util.stream.Collectors.toList());
+            return response;
         }
 
-        switch (tipo.toLowerCase()) {
-            case "nombre":
-                return repo.findByNombre(criterio);
-            case "categoria":
-                return repo.findByCategoria(criterio);
-            default:
-                return repo.findAll();
-        }
+        return switch (tipo.toLowerCase()) {
+            case "nombre" -> porNombre;
+            case "categoria" -> porCategoria;
+            default -> repo.findAll();
+        };
     }
 
-    // AGREGA ESTE MÉTODO MEJORADO a tu clase existente
+    /**
+     * Agrega un producto a la base de datos.
+     * @param producto Información del producto.
+     * @return Response, que contiene si el flujo no tuvo errores.
+     */
     @Override
-    public boolean agregarProducto(Producto producto) {
-        try {
+    public Response agregarProducto(Producto producto) {
+        Response response = new Response();
             // 1. Validaciones básicas
             if (producto == null) {
-                System.out.println("El producto no puede ser nulo");
-                return false;
+                response.internal_error("SPI.agregarProducto: Producto nulo.");
+                return response;
             }
 
             // 2. Validar nombre
             if (producto.getNombre() == null || producto.getNombre().trim().isEmpty()) {
-                System.out.println("El nombre del producto es requerido");
-                return false;
+                response.internal_error("SPI.agregarProducto: Nombre de producto vacío.");
+                return response;
             }
 
             if (producto.getNombre().trim().length() > 100) {
-                System.out.println("El nombre del producto es demasiado largo");
-                return false;
+                response.internal_error("SPI.agregarProducto: Nombre de producto mayor a 100 carácteres.");
+                return response;
             }
 
             // 3. Validar precios
             if (producto.getPrecioCompra() <= 0) {
-                System.out.println("El precio de compra debe ser mayor a 0");
-                return false;
+                response.internal_error("SPI.agregarProducto: Precio de compra en cero o negativo.");
+                return response;
             }
 
             if (producto.getPrecioVenta() <= 0) {
-                System.out.println("El precio de venta debe ser mayor a 0");
-                return false;
+                response.internal_error("SPI.agregarProducto: Precio de venta en cero o negativo.");
+                return response;
             }
 
             if (producto.getPrecioVenta() < producto.getPrecioCompra()) {
-                System.out.println("El precio de venta no puede ser menor al precio de compra");
-                return false;
+                response.internal_error("SPI.agregarProducto: Precio de venta menor al precio de compra.");
+                return response;
             }
 
             // 4. Validar cantidad
             if (producto.getCantidad() < 0) {
-                System.out.println("La cantidad no puede ser negativa");
-                return false;
+                response.internal_error("SPI.agregarProducto: La cantidad de producto no puede ser negativo.");
+                return response;
             }
 
-            // 5. Validar categoría
-            if (producto.getCategoriaNombre() == null || producto.getCategoriaNombre().trim().isEmpty()) {
-                System.out.println("La categoría del producto es requerida");
-                return false;
-            }
-
-            // 6. Validar que no exista un producto con el mismo nombre (opcional)
-            // Esto es opcional - depende si quieres nombres únicos
-            List<Producto> productosMismoNombre = repo.findByNombre(producto.getNombre().trim());
+            // 6. Validar que no exista un producto con el mismo nombre
+            List<Producto> productosMismoNombre = repo.findByNombre(producto.getNombre().trim()).getContent();
             if (productosMismoNombre != null && !productosMismoNombre.isEmpty()) {
-                System.out.println("Ya existe un producto con el nombre: " + producto.getNombre());
-                return false;
+                response.internal_error("SPI.agregarProducto: No es posible agregar otro producto con el mismo nombre.");
+                return response;
             }
 
             // 7. Establecer fecha de ingreso si no está establecida
@@ -129,67 +179,39 @@ public class    ServicioProductoImplementacion implements ServicioProducto {
             }
 
             // 8. Guardar en la base de datos
-            boolean guardado = repo.save(producto);
+            response = repo.save(producto);
 
-            if (guardado) {
-                System.out.println("Producto agregado exitosamente:");
-                System.out.println("   - Nombre: " + producto.getNombre());
-                System.out.println("   - Precio Compra: " + producto.getPrecioCompra());
-                System.out.println("   - Precio Venta: " + producto.getPrecioVenta());
-                System.out.println("   - Stock: " + producto.getCantidad());
-                System.out.println("   - Categoría: " + producto.getCategoriaNombre());
-            } else {
-                System.out.println("Error al guardar el producto en la base de datos");
-            }
+            return response;
 
-            return guardado;
-
-        } catch (Exception e) {
-            System.err.println("Error en agregarProducto: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
     }
 
     @Override
-    public boolean eliminarProducto(int idProducto) {
-        try {
+    public Response eliminarProducto(int idProducto) {
+        Response<Producto> response = new Response<Producto>();
+
             // 1. Validar que el ID sea válido
             if (idProducto <= 0) {
-                System.out.println("ID de producto inválido: " + idProducto);
-                return false;
+                response.internal_error("SPI.eliminarProducto: El id de producto '" + idProducto + "' es inválido.");
+                return response;
             }
 
             // 2. Validar que el producto existe
-            Producto producto = repo.findById(idProducto);
-            if (producto == null) {
-                System.out.println("Producto no encontrado con ID: " + idProducto);
-                return false;
+            response = repo.findById(idProducto);
+            if(!response.isOk()){
+                response.internal_error("SPI.eliminarProducto: Producto no encontrado con ID= " + idProducto);
+                return response;
             }
 
-            // 3. Validar que el producto no tenga stock
-            if (producto.getCantidad() > 0) {
-                System.out.println("No se puede eliminar producto con stock existente: " + producto.getCantidad() + " unidades");
-                return false;
+            Producto producto = response.getContent();
+
+            // Hacemos un nuevo 'response' para almacenar el de delete.
+            Response DeleteResponse = repo.delete(idProducto);
+
+            if (!DeleteResponse.isOk()) {
+                DeleteResponse.internal_error("SPI.eliminarProducto: Error al eliminar el producto de la base de datos.");
             }
 
-            // 4. Eliminar el producto
-            boolean eliminado = repo.delete(idProducto);
+            return DeleteResponse;
 
-            if (eliminado) {
-                System.out.println(" Producto eliminado exitosamente:");
-                System.out.println("   - ID: " + idProducto);
-                System.out.println("   - Nombre: " + producto.getNombre());
-            } else {
-                System.out.println(" Error al eliminar el producto de la base de datos");
-            }
-
-            return eliminado;
-
-        } catch (Exception e) {
-            System.err.println("Error en eliminarProducto: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
     }
 }

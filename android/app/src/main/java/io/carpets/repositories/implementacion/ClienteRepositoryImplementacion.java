@@ -9,6 +9,11 @@ import java.util.List;
 
 public class ClienteRepositoryImplementacion implements ClienteRepository {
 
+    /**
+     * Registra a algun cliente
+     * @param cliente Información del cliente
+     * @return true si es que todo salió bien, false si es que hubo algún error.
+     */
     @Override
     public boolean save(Cliente cliente) {
         String sql = "INSERT INTO cliente (nombre, dni) VALUES (?, ?)";
@@ -26,6 +31,11 @@ public class ClienteRepositoryImplementacion implements ClienteRepository {
         return false;
     }
 
+    /**
+     * Actualiza la información de un cliente
+     * @param cliente Contiene la información de un cliente.
+     * @return true si es que todo salió bien, false si es que hubo algún error.
+     */
     @Override
     public boolean update(Cliente cliente) {
         String sql = "UPDATE cliente SET nombre=? WHERE dni=?";
@@ -43,6 +53,11 @@ public class ClienteRepositoryImplementacion implements ClienteRepository {
         return false;
     }
 
+    /**
+     * Eliminar a un cliente
+     * @param dni Dni del cliente, se usa para identificar al usuario
+     * @return true si es que todo salió bien, false si es que hubo algún error
+     */
     @Override
     public boolean delete(String dni) {
         String sql = "DELETE FROM cliente WHERE dni=?";
@@ -58,6 +73,11 @@ public class ClienteRepositoryImplementacion implements ClienteRepository {
         return false;
     }
 
+    /**
+     * Encuentra al usuario usando su dni como identificador.
+     * @param dni dni del usuario
+     * @return Si todo sale bien retorna un cliente, sino un nulo.
+     */
     @Override
     public Cliente findByDni(String dni) {
         String sql = "SELECT * FROM cliente WHERE dni=?";
@@ -79,6 +99,10 @@ public class ClienteRepositoryImplementacion implements ClienteRepository {
         return null;
     }
 
+    /**
+     * Encuentra todos los clientes registrados. No se para que se usaría.
+     * @return Una lista con los clientes, si no hay, una lista vacía.
+     */
     @Override
     public List<Cliente> findAll() {
         List<Cliente> lista = new ArrayList<>();
@@ -100,7 +124,11 @@ public class ClienteRepositoryImplementacion implements ClienteRepository {
         return lista;
     }
 
-    // buscar clientes por nombre
+    /**
+     * Encuentra una lista de clientes que contengan cierto nombre.
+     * @param nombre nombre del usuario
+     * @return Retorna una lista de coincidencias, si no hay, una lista vacía.
+     */
     public List<Cliente> findByNombre(String nombre) {
         List<Cliente> lista = new ArrayList<>();
         String sql = "SELECT * FROM cliente WHERE nombre LIKE ?";
@@ -122,7 +150,11 @@ public class ClienteRepositoryImplementacion implements ClienteRepository {
         return lista;
     }
 
-    // verificar si un cliente existe por DNI
+    /**
+     * Se usa el dni para verificar si un cliente existe en la base de datos.
+     * @param dni Identificador del cliente.
+     * @return Retorna true o false segun exista el cliente.
+     */
     public boolean existePorDni(String dni) {
         String sql = "SELECT COUNT(*) FROM cliente WHERE dni=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();

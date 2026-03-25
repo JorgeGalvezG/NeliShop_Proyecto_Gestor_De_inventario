@@ -2,6 +2,7 @@ import 'dart:ffi';
 
 import '../bridge_flutter.dart';
 
+import '../config/core.dart';
 import '../modelos/product_model.dart';
 import '../servicios/product_service.dart';
 import '../widgets/activity_card.dart';
@@ -40,11 +41,15 @@ class _HomePageState extends State<HomePage> {
 
     try {
       // 1. Obtener Ganancia Neta Real (Requiere la corrección SQL en Java)
-      double? ganancia = await BF.getGananciaTotal();
+      BridgeResponse response = await BF.getGananciaTotal();
+      double? ganancia = response.isSuccess ? response.data : 0.0 ;
 
       // 2. Obtener Cantidad Real de Productos en Base de Datos
-      List<dynamic> productosRaw = await BF.obtenerProductos();
-      int cantidad = productosRaw.length;
+      //List<dynamic> productosRaw = await BF.obtenerProductos();
+      response = await BF.obtenerProductos();
+      List<dynamic> list = response.isSuccess ? response.data : [];
+      //int cantidad = productosRaw.length;
+      int cantidad = list.length;
 
       if(mounted) {
         setState(() {

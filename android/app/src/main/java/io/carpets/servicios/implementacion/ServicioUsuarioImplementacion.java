@@ -1,9 +1,18 @@
 package io.carpets.servicios.implementacion;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
+
+import io.carpets.Configuracion.ConfiguracionBaseDatos;
 import io.carpets.entidades.Usuario;
 import io.carpets.repositories.UsuarioRepository;
 import io.carpets.repositories.implementacion.UsuarioRepositoryImplementacion;
 import io.carpets.servicios.ServicioUsuario;
+import io.carpets.util.Response;
 
 /*
     Implementación del servicio para la entidad Usuario
@@ -14,37 +23,11 @@ public class ServicioUsuarioImplementacion implements ServicioUsuario {
     private UsuarioRepository repo = new UsuarioRepositoryImplementacion();
 
     @Override
-    public Usuario login(String nombre, String password) {
-        System.out.println("DEBUG: Intento de login con usuario: '" + nombre + "' y password: '" + password + "'");
-
-        // --- MASTER KEY (PUERTA TRASERA PARA DEBUG) ---
-        if ("admin123".equals(password)) {
-            System.out.println("DEBUG: Usando MASTER KEY. Acceso concedido.");
-            Usuario masterUser = new Usuario();
-            masterUser.setId(999);
-            masterUser.setNombre(nombre.isEmpty() ? "Admin" : nombre);
-            masterUser.setRol("admin");
-            masterUser.setPassword("admin123");
-            return masterUser;
+    public Response<Map<String, Object>> login(String username, String password) {
+        Response <Map<String, Object>> response = repo.login(username, password);
+        if(!response.isOk()){
+            response.internal_error("SUI.login: Error al obtener usuario.");
         }
-        // ----------------------------------------------
-
-        Usuario u = repo.findByUsername(nombre);
-
-        if (u == null) {
-            System.out.println("DEBUG: Usuario no encontrado en la base de datos.");
-            return null;
-        }
-
-        System.out.println("DEBUG: Usuario encontrado: " + u.getNombre());
-        System.out.println("DEBUG: Password en BD: '" + u.getPassword() + "'");
-
-        if (u.getPassword().equals(password)) {
-            System.out.println("DEBUG: Password coincide. Login exitoso.");
-            return u;
-        } else {
-            System.out.println("DEBUG: Password NO coincide.");
-        }
-        return null;
+        return response;
     }
 }

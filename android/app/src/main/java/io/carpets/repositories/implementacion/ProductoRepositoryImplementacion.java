@@ -7,6 +7,8 @@ import androidx.annotation.RequiresApi;
 import io.carpets.Configuracion.ConfiguracionBaseDatos;
 import io.carpets.entidades.Producto;
 import io.carpets.repositories.ProductoRepository;
+import io.carpets.util.Response;
+
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,9 +19,11 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
      * Verifica si la categoría existe. Si no existe, la inserta.
      * Mover este método privado arriba o abajo no importa, pero debe estar fuera de otros métodos.
      */
-    private boolean asegurarCategoria(String categoriaNombre) throws SQLException {
+    private Response asegurarCategoria(String categoriaNombre) throws SQLException {
+        Response response = new Response();
         if (categoriaNombre == null || categoriaNombre.trim().isEmpty()) {
-            return false;
+            response.internal_error("PRI.asegurarCategoria: Parámetro nulo o vacío.");
+            return response;
         }
 
         String sqlCheck = "SELECT COUNT(*) FROM categoria WHERE nombre = ?";
@@ -31,32 +35,39 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
                 stmtCheck.setString(1, categoriaNombre);
                 ResultSet rs = stmtCheck.executeQuery();
                 if (rs.next() && rs.getInt(1) > 0) {
-                    return true; // Ya existe
+                    response.internal_error("PRI.asegurarCategoria: La categoría no existe en la base de datos.");
+                    return response;
                 }
             }
             // 2. Insertar si no existe
             try (PreparedStatement stmtInsert = conn.prepareStatement(sqlInsert)) {
                 stmtInsert.setString(1, categoriaNombre);
-                return stmtInsert.executeUpdate() > 0;
+                response.exito();
+                return response;
             }
         }
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.GINGERBREAD)
+    /**
+     * Registra un producto en la base de datos.
+     * @param producto Contiene la información del producto a registrar.
+     * @return Response indicará si todo salió bien o si hubo algún problema.
+     */
     @Override
-    public boolean save(@NonNull Producto producto) {
-        // 1. Asegurar categoría
+    public Response save(@NonNull Producto producto) {
+        Response response = new Response();
+        // Verificamos si la categoria existe
         try {
-            if (!asegurarCategoria(producto.getCategoriaNombre())) {
-                System.out.println("Error: Categoría inválida o no se pudo crear.");
-                return false;
+            if (!asegurarCategoria(producto.getCategoriaNombre()).isOk()) {
+                response.internal_error("PRI.save: Categoría inválida o no se pudo crear.");
+                return response;
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
+            response.internal_error("PRI.save: " + e.getMessage());
+            return response;
         }
 
-        // 2. SQL Correcto (8 parámetros)
+        //Query molde con 8 parametros
         String sql = "INSERT INTO producto (nombre, fecha_ingreso, precio_compra, precio_venta, cantidad, categoria_nombre, image_path, precio_oferta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
@@ -95,19 +106,27 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
                         producto.setId(rs.getInt(1));
                     }
                 }
-                return true;
+                response.exito();
+                return response;
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("PRI.save: " + e.getMessage());
         }
-        return false;
+        return response;
     }
 
+    /**
+     * Actualiza la información de un producto específico.
+     * @param producto Contiene toda la información del producto.
+     * @return Response indica si todo salió correcto o si es que hubo problemas.
+     */
     @Override
-    public boolean update(Producto producto) {
+    public Response update(Producto producto) {
+        Response response = new Response();
+
         // SQL: 8 campos a actualizar + 1 condición WHERE = 9 parámetros en total
-        String sql = "UPDATE producto SET nombre=?, fecha_ingreso=?, precio_compra=?, precio_venta=?, cantidad=?, categoria_nombre=?, image_path=?, precio_oferta=? WHERE idproducto=?";
+        String sql = "UPDATE producto SET nombre=?, fecha_ingreso=?, precio_compra=?, precio_venta=?, cantidad=?, categoria_nombre=?, image_path=?, precio_oferta=? WHERE id_producto=?";
 
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -139,50 +158,67 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
             // 9. ID (Condición WHERE)
             stmt.setInt(9, producto.getId());
 
-            return stmt.executeUpdate() > 0;
+            if(stmt.executeUpdate() > 0){response.exito();}
+            else{response.internal_error("PRI.update: No se actualizó ninguna fila.");}
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("PRI.update: " + e.getMessage());
         }
-        return false;
+        return response;
     }
 
+    /**
+     * Elimina el registro de un producto.
+     * @param id Identificador del producto en la base de datos.
+     * @return  Response registra si hubo algún problema.
+     */
     @Override
-    public boolean delete(int id) {
-        String sql = "DELETE FROM producto WHERE idproducto=?";
+    public Response delete(int id) {
+        Response response = new Response();
+        String sql = "DELETE FROM producto WHERE id_producto=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
-            return stmt.executeUpdate() > 0;
+
+            if(stmt.executeUpdate() > 0){   response.exito();   }
+            else{response.internal_error("PRI.delete: No se eliminó ninguna fila.");}
+
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("PRI.delete: " + e.getMessage());
         }
-        return false;
+        return response;
     }
 
+    /**
+     * Encuentra la información de un producto usando su Id.
+     * @param id Identificador del producto.
+     * @return Response registra al producto encontrado, si hubo algún problema, se devuelve un mensaje de error..
+     */
     @Override
-    public Producto findById(int id) {
-        String sql = "SELECT * FROM producto WHERE idproducto=?";
+    public Response<Producto> findById(int id) {
+        Response<Producto> response = new Response<Producto>();
+        String sql = "SELECT * FROM producto WHERE id_producto=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return mapearProducto(rs);
+                    response.exito(mapearProducto(rs));
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("PRI.findById: " + e.getMessage());
         }
-        return null;
+        return response;
     }
 
     /**
      * Usa un llamado a la base de datos para obtener TODOS los productos
-     * @return Lista : Es una lista con todos los productos tipo List<Producto>
+     * @return Response contiene una lista con todos los productos tipo List<Producto>.
      */
     @Override
-    public List<Producto> findAll() {
+    public Response<List<Producto>> findAll() {
+        Response<List<Producto>> response = new Response<List<Producto>>();
         List<Producto> lista = new ArrayList<>();
         String sql = "SELECT * FROM producto";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
@@ -191,14 +227,21 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
             while (rs.next()) {
                 lista.add(mapearProducto(rs));
             }
+            response.exito(lista);
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("PRI.findAll: " + e.getMessage());
         }
-        return lista;
+        return response;
     }
 
+    /**
+     * Busca un listado de productos usando una categoria seleccionada.
+     * @param categoriaNombre Categoria por la que se buscarán los productos.
+     * @return Response tendrá una lista, si no hubo nada o hubo problemas en la busqueda, la lista estará vacia.
+     */
     @Override
-    public List<Producto> findByCategoria(String categoriaNombre) {
+    public Response<List<Producto>> findByCategoria(String categoriaNombre) {
+        Response<List<Producto>> response = new Response<List<Producto>>();
         List<Producto> lista = new ArrayList<>();
         String sql = "SELECT * FROM producto WHERE categoria_nombre=?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
@@ -208,15 +251,22 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
                 while (rs.next()) {
                     lista.add(mapearProducto(rs));
                 }
+                response.exito(lista);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("PRI.findByCategoria: " + e.getMessage());
         }
-        return lista;
+        return response;
     }
 
+    /**
+     * Buscará los productos que CONTENGAN el texto buscado.
+     * @param nombre Es el texto con el que filtraremos los productos.
+     * @return Una lista con productos, si no hubo coincidencias o si es que hubo problemas, la lista estará vacia.
+     */
     @Override
-    public List<Producto> findByNombre(String nombre) {
+    public Response<List<Producto>> findByNombre(String nombre) {
+        Response<List<Producto>> response = new Response<List<Producto>>();
         List<Producto> lista = new ArrayList<>();
         // Usamos LIKE ? para buscar coincidencias parciales
         String sql = "SELECT * FROM producto WHERE nombre LIKE ?";
@@ -228,47 +278,64 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
                 while (rs.next()) {
                     lista.add(mapearProducto(rs));
                 }
+                response.exito(lista);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("PRI.findByNombre: " + e.getMessage());
         }
-        return lista;
+        return response;
     }
 
+    /**
+     * Obtienes la ganancia total obtenida.
+     * ANOTACION: PQ CHCH TA ESTO EN ESTA CLASE???
+     * @return retorna la ganancia total, si hubo problemas, retorna 0.0
+     */
     @Override
-    public double getGananciaTotal() {
+    public Response<Double> getGananciaTotal() {
+        Response<Double> response = new Response<Double>();
         // Corrección en la lógica: Usar nombres de tablas consistentes
         String sql = "SELECT SUM((d.precio_unitario - p.precio_compra) * d.cantidad) AS ganancia_total " +
                 "FROM detalle_venta d " +
-                "JOIN producto p ON d.idproducto = p.idproducto";
+                "JOIN producto p ON d.id_producto = p.id_producto";
 
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             if (rs.next()) {
-                return rs.getDouble("ganancia_total");
+                response.exito(rs.getDouble("ganancia_total"));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("PRI.getGananciaTotal: " + e.getMessage());
         }
-        return 0.0;
+        return response;
     }
 
+    /**
+     * Verifica si un producto sigue existiendo usando su Id como verificador.
+     * @param id Identificador del producto
+     * @return true o false segun si existe o no.
+     */
     @Override
-    public boolean existeIdById(int id) {
-        String sql = "SELECT COUNT(*) FROM producto WHERE idproducto = ?";
+    public Response existeIdById(int id) {
+        Response response = new Response();
+        String sql = "SELECT COUNT(*) FROM producto WHERE id_producto = ?";
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt(1) > 0;
+                    if(rs.getInt(1) > 0){response.exito();}
+                    else{
+                        response.internal_error("PRI.existeIdById: No existe un producto con el ID indicado.");
+                    }
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("PRI.existeIdById: " + e.getMessage());
+
         }
-        return false;
+        return response;
     }
 
     // Método auxiliar para mapear ResultSet a Objeto
@@ -281,7 +348,7 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
      */
     private Producto mapearProducto(ResultSet rs) throws SQLException {
         Producto p = new Producto();
-        p.setId(rs.getInt("idproducto"));
+        p.setId(rs.getInt("id_producto"));
         p.setNombre(rs.getString("nombre"));
         p.setFechaIngreso(rs.getDate("fecha_ingreso"));
         p.setPrecioCompra(rs.getDouble("precio_compra"));
