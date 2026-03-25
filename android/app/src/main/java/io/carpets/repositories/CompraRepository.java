@@ -1,6 +1,9 @@
 package io.carpets.repositories;
 
 import io.carpets.entidades.Compra;
+import io.carpets.util.Response;
+
+import java.sql.Date;
 import java.util.List;
 
 /*
@@ -8,9 +11,10 @@ import java.util.List;
     define los métodos CRUD para interactuar con la base de datos.
 */
 public interface CompraRepository {
-    boolean save(Compra compra);
-    boolean update(Compra compra);
-    boolean delete(int id);
-    Compra findById(int id);
-    List<Compra> findAll();
+    Response save(Compra compra);
+    Response update(Compra compra);
+    Response delete(String consulta);
+    Response<Compra> findById(int id);
+    Response<List<Compra>> findAll();
+    Response<List<Compra>> findByDate(Date Desde, Date Hasta);
 }

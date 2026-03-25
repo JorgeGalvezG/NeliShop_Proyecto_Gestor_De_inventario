@@ -1,5 +1,7 @@
 package io.carpets.entidades;
 
+import java.util.Map;
+
 public class DetalleCompra {
     private int id;
     private int unidades;
@@ -51,4 +53,16 @@ public class DetalleCompra {
 
     public double getPrecioUnitario() { return precioUnitario; }
     public void setPrecioUnitario(double precioUnitario) { this.precioUnitario = precioUnitario; }
+
+    public static DetalleCompra DetCompraFromMap(Map<String, Object> DetCompraMap){
+        DetalleCompra detCompra = new DetalleCompra();
+        if (DetCompraMap.get("productoId") != null)
+            detCompra.setProductoId((int) DetCompraMap.get("productoId"));
+        if (DetCompraMap.get("unidades") != null)
+            detCompra.setUnidades((int) DetCompraMap.get("unidades"));
+        if (DetCompraMap.get("precioUnitario") != null)
+            detCompra.setPrecioUnitario(Double.parseDouble(DetCompraMap.get("precioUnitario").toString()));
+        return detCompra;
+    }
+
 }

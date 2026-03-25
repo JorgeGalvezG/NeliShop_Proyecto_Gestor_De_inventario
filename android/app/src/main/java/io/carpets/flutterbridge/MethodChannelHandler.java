@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 
 import io.carpets.Configuracion.ConfiguracionBaseDatos;
 import io.carpets.util.Response;
+import io.flutter.embedding.engine.systemchannels.PlatformChannel;
 
 public class MethodChannelHandler {
 
@@ -31,69 +32,10 @@ public class MethodChannelHandler {
     // SECCIÓN 1: AUTENTICACIÓN (LOGIN)
     // ========================================================================
 
-
-    //metodo sin capacidad ni cifrado
-    /* public Map<String, Object> login(String dni, String password) {
-        Usuario u = usuarioService.login(dni, password);
-        if (u != null) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "ok");
-            response.put("mensaje", "Login exitoso");
-            response.put("usuario", u.getNombre());
-            response.put("rol", u.getRol());
-            return response;
-        }
-        Map<String, Object> error = new HashMap<>();
-        error.put("status", "error");
-        error.put("mensaje", "Credenciales inválidas");
-        return error;
-    } */
-    //metodo cambiado y cifrando para evitar vulneraciones
-
-    public Response<Map<String, Object>> login(String dni, String password) {
-        Response<Map<String, Object>> response = new Response<>();
-        Map<String, Object> Usuario = new HashMap<>();
-        Connection conn = null;
-        PreparedStatement pst = null;
-        ResultSet rs = null;
-        try {
-            conn = ConfiguracionBaseDatos.getConnection();
-            // Construir la consulta SQL con la contraseña cifrada
-            String sql = "SELECT * FROM vendedor WHERE nombre = ? AND password = ?";
-            //preparacion de la consulta a la bd
-            pst = conn.prepareStatement(sql);
-            //rellenamos datos de forma segura
-            pst.setString(1, dni); //el primer "hueco" es el dni
-            pst.setString(2, password); //el segundo "hueco" es la contraseña cifrada
-
-            //ejecutamos
-            rs = pst.executeQuery(); //posible SQLException
-
-            if (rs.next()) {
-                Usuario.put("status", "ok");
-                Usuario.put("mensaje", "Bienvenido" + rs.getString("nombre"));
-
-                //guardamos datos utiles para flutter
-                Usuario.put("id", rs.getInt("id_vendedor"));
-                Usuario.put("rol", rs.getString("rol")); // 'admin' o 'vendedor'
-                Usuario.put("nombre", rs.getString("nombre"));
-                response.exito(Usuario);
-            } else {
-                // Credenciales incorrectas
-                response.internal_error("MCH.login: Credenciales incorrectas.");
-            }
-        } catch (SQLException e) {
-            response.internal_error("MCH.login: " + e.getMessage());
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (pst != null) pst.close();
-                //no se cierra conN por si se hace uso de un pool compartido
-                //si se abre una por consulta; solo descomentar la siguiente linea de codigo:
-                //if (conn != null) conn.close();
-            } catch (SQLException e) {
-                response.internal_error("MCH.login: " + e.getMessage());
-            }
+    public Response<Map<String, Object>> login(String username, String password) {
+        Response <Map<String, Object>> response = usuarioService.login(username, password);
+        if(!response.isOk()){
+            response.message_error("Error. Su usuario y contraseña deben ser exactos.");
         }
         return response;
     }
@@ -196,13 +138,6 @@ public class MethodChannelHandler {
         response.exito(
                 productos.stream().map(this::productoToMap).collect(Collectors.toList())
         );
-        return response;
-    }
-
-    public Response<List<Map<String, Object>>> buscarProductoEnVentaPorIdONombre(String criterio) {
-        // Retornamos lista vacía para evitar crash por ahora
-        Response response = new Response();
-        response.exito(new ArrayList<>());
         return response;
     }
 
@@ -319,81 +254,93 @@ public class MethodChannelHandler {
     // SECCIÓN 4: GESTIÓN DE COMPRAS
     // ========================================================================
 
-    public Map<String, Object> registrarCompra(Compra compra, List<DetalleCompra> detalles) {
-        try {
-            boolean exito = compraService.registrarCompra(compra, detalles);
-            Map<String, Object> resultado = new HashMap<>();
-            resultado.put("status", exito ? "ok" : "error");
-            return resultado;
-        } catch (Exception e) {
-            return errorResponse(e.getMessage());
+    /**
+     * Registrar una compra desde la base de datos.
+     * @param compraMapObj Es el objeto contenedor mandado por flutter. Contiene la compra a registrar.
+     * @param detallesListObj Es el objeto contenedor mandado por flutter. Contiene los detalles de compra a registrar.
+     * @return Response, indica si la lógica sucedió según lo esperado.
+     */
+    public Response registrarCompra(Object compraMapObj, Object detallesListObj) {
+
+        //Convertimos los objetos del bridge a Objetos propios.
+        Compra compra = Compra.CompraFromMap((Map<String, Object>) compraMapObj);
+        List<Map<String, Object>> detallesList = (List<Map<String, Object>>) detallesListObj;
+
+        List<DetalleCompra> detalles = new ArrayList<>();
+        for (Map<String, Object> detMap : detallesList) {
+            detalles.add(DetalleCompra.DetCompraFromMap(detMap));
         }
-    }
 
-    // 🟢 CORRECCIÓN: Devolvemos List<Map> en lugar de List<Compra>
-    public List<Map<String, Object>> listarCompras() {
-        List<Compra> compras = compraService.listarCompras();
-        List<Map<String, Object>> listaMapas = new ArrayList<>();
+        //Lógica.
+        Response response = new Response();
 
-        // Repositorios para buscar la imagen asociada
-        io.carpets.repositories.DetalleCompraRepository detalleRepo = new io.carpets.repositories.implementacion.DetalleCompraRepositoryImplementacion();
-        io.carpets.repositories.ProductoRepository productoRepo = new io.carpets.repositories.implementacion.ProductoRepositoryImplementacion();
-
-        for (Compra c : compras) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", c.getId());
-            map.put("descripcion", c.getDescripcion());
-            map.put("monto", c.getMonto());
-
-            // --- BÚSQUEDA DE IMAGEN ---
-            // Buscamos los detalles de esta compra para encontrar qué producto fue
-            List<DetalleCompra> detalles = detalleRepo.findByCompraId(c.getId());
-            if (detalles != null && !detalles.isEmpty()) {
-                // Tomamos el primer producto de la compra para mostrar su foto
-                Producto p = productoRepo.findById(detalles.get(0).getProductoId()).getContent();
-                if (p != null) {
-                    map.put("imagePath", p.getImagePath()); // Enviamos la ruta
-                }
-            }
-            // --------------------------
-
-            listaMapas.add(map);
+        if(!compraService.registrarCompra(compra, detalles).isOk()){
+            response.message_error("Error al registrar compra. Revise su conexión.");
+            return response;
         }
-        return listaMapas;
-    }
-    public Map<String, Object> eliminarDetalleCompra(int detalleId) {
-        boolean exito = compraService.eliminarDetalleCompra(detalleId);
-        Map<String, Object> r = new HashMap<>();
-        r.put("status", exito ? "ok" : "error");
-        return r;
+
+        response.exito();
+        return response;
     }
 
-    public Map<String, Object> editarDetalleCompra(int detalleId, int cantidad, double precio) {
-        boolean exito = compraService.editarDetalleCompra(detalleId, cantidad, precio);
-        Map<String, Object> r = new HashMap<>();
-        r.put("status", exito ? "ok" : "error");
-        return r;
+    public Response modificarDescripcionCompra(Object compraMap) {
+
+        Response response = new Response();
+        Compra compra = new Compra();
+        Map<String, Object> Mapa = (Map<String, Object>) compraMap;
+
+        if (Mapa == null){
+            response.internal_error("MCH.modificarDescripcionCompra: Error en la conversión del mapa.");
+            return response;
+        }
+            compra.setDescripcion((String) Mapa.get("descripcion"));
+        response = compraService.actualizarDescripcionCompra(compra);
+
+        if(!response.isOk()){
+            response.message_error("Error. Revise su conexión a internet.");
+        }
+
+        return response;
     }
 
-    public Map<String, Object> eliminarCompra(int compraId) {
-        boolean exito = compraService.eliminarCompra(compraId);
-        Map<String, Object> r = new HashMap<>();
-        r.put("status", exito ? "ok" : "error");
-        return r;
+
+    public Response<List<Map<String, Object>>> listarCompras() {
+        Response<List<Map<String, Object>>> response = new Response<>();
+
+        //verificamos que se listen las compras correctamente.
+        Response<List<Map<String, Object>>> request = compraService.listarCompras();
+        if(!request.isOk()){
+            response.message_error("Error al listar compras. Revise su conexión.");
+            return response;
+        }
+
+        response.exito(request.getContent());
+        return response;
+    }
+    public Response eliminarDetalleCompra(int detalleId) {
+        Response response = compraService.eliminarDetalleCompra(detalleId);
+        if(!response.isOk()){
+            response.message_error("Error al eliminar el detalle de compra. Revise su conexión a internet.");
+        }
+        return response;
     }
 
-    // Stubs para evitar errores de compilación
-    public Map<String, Object> validarDatosProductoNuevo(String codigo, int cantidad, double precio) {
-        return new HashMap<>();
+    public Response editarDetalleCompra(int detalleId, int cantidad, double precio) {
+        DetalleCompra detalleCompra = new DetalleCompra();
+        detalleCompra.setId(detalleId);
+        detalleCompra.setUnidades(cantidad);
+        detalleCompra.setPrecioUnitario(precio);
+        Response response = compraService.editarDetalleCompra(detalleCompra);
+        if(!response.isOk()){response.message_error("Error al editar el detalle de compra. Revise su internet.");}
+        return response;
     }
 
-    public Map<String, Object> agregarProductoNuevoACompra(DetalleCompra detalle) {
-        return new HashMap<>();
+    public Response eliminarCompra(int compraId) {
+        Response response = compraService.eliminarCompra(compraId);
+        if(!response.isOk()){response.message_error("Error al eliminar su compra. Revise su internet.");}
+        return response;
     }
 
-    public Map<String, Object> agregarProductoExistenteACompra(int productoId, int cantidad) {
-        return new HashMap<>();
-    }
 
     public Map<String, Object> obtenerVentasPorDia(String fecha) {
         return new HashMap<>();
@@ -410,4 +357,6 @@ public class MethodChannelHandler {
         r.put("mensaje", msg);
         return r;
     }
+
+
 }

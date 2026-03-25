@@ -40,9 +40,11 @@ class _ComprasPageState extends State<ComprasPage> {
     setState(() => _isLoading = true);
 
     try {
-      // El bridge ya devuelve una JsonList limpia
       final result = await _bridge.listarCompras();
-      _compras = result;
+
+      if(result.isSuccess) {
+        _compras = result.data;
+      }
     } catch (e) {
       print("Error loading purchases: $e");
     } finally {

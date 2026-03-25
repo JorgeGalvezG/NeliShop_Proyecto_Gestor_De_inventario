@@ -20,9 +20,9 @@ public class BridgeProducto {
     private final String agregarProducto = "addProduct";
     private final String actualizarProducto = "editProduct";
     private final String eliminarProducto = "deleteProduct";
-    private final String buscarProductoEnVentaPorIdONombre = "SearchIdNombre";
     private final String buscarProductos = "searchProducts";
     private final String getGananciaTotal = "SumGanancia";
+    private final String modificarDescripcionCompra = "updateDescription";
 
     HashMap<String, Function<Object, Response>> VoidFunc = new HashMap<>();
     HashMap<String, Function<Object, Response>> Funct = new HashMap<>();
@@ -113,7 +113,7 @@ public class BridgeProducto {
         });
 
         Funct.put(eliminarProducto, (Object idProducto) -> MCH.eliminarProducto((int) idProducto));
-        Funct.put(buscarProductoEnVentaPorIdONombre, (Object criterio) -> MCH.buscarProductoEnVentaPorIdONombre((String) criterio));
+        Funct.put(modificarDescripcionCompra, (Object compraMap) -> MCH.modificarDescripcionCompra(compraMap));
 
         // Funciones con dos parámetros
         Bifunc.put(buscarProductos, (Object criterio, Object tipo) -> MCH.buscarProductos((String) criterio, (String) tipo));

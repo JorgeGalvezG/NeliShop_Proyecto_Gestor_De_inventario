@@ -13,15 +13,17 @@ import io.carpets.servicios.ServicioCompra;
 import io.carpets.servicios.ServicioProducto;
 import io.carpets.util.Response;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
 
 public class ServicioCompraImplementacion implements ServicioCompra {
 
-    private CompraRepository compraRepo = new CompraRepositoryImplementacion();
-    private DetalleCompraRepository detalleCompraRepo = new DetalleCompraRepositoryImplementacion();
-    private ProductoRepository productoRepo = new ProductoRepositoryImplementacion();
-    private ServicioProducto servicioProducto = new ServicioProductoImplementacion();
+    final private CompraRepository compraRepo = new CompraRepositoryImplementacion();
+    final private DetalleCompraRepository detalleCompraRepo = new DetalleCompraRepositoryImplementacion();
+    final private ProductoRepository productoRepo = new ProductoRepositoryImplementacion();
+    final private ServicioProducto servicioProducto = new ServicioProductoImplementacion();
 
     // Límites para validación de datos del producto
     private static final double PRECIO_COMPRA_MINIMO = 0.01;
@@ -30,433 +32,342 @@ public class ServicioCompraImplementacion implements ServicioCompra {
     private static final int CANTIDAD_MAXIMA = 10000;
 
     @Override
-    public boolean registrarCompra(Compra compra, List<DetalleCompra> detalles) {
-        try {
+    public Response registrarCompra(Compra compra, List<DetalleCompra> detalles) {
 
-            // Guardar compra
-            boolean compraGuardada = compraRepo.save(compra);
-            if (!compraGuardada) {
-                return false;
-            }
-
-            // Obtener el ID de la compra recién guardada
-            if (compra.getId() <= 0) {
-                return false;
-            }
-
-            // Guardar detalles
-            for (DetalleCompra detalle : detalles) {
-                detalle.setCompraId(compra.getId());
-
-                // Guardar detalle
-                boolean detalleOk = detalleCompraRepo.save(detalle);
-                if (!detalleOk) return false;
-            }
-
-            // Actualizar stock de productos - NUEVA LÓGICA EXTRACTADA
-            boolean stockActualizado = actualizarStockPorCompra(detalles);
-            if (!stockActualizado) {
-                System.err.println("Error al actualizar stock de productos");
-                return false;
-            }
-
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
+        Response response = new Response();
+        //Si revisas compraRepo.Save verás que 'compra' almacena el id de la nueva fila.
+        if (!compraRepo.save(compra).isOk()) {
+            response.internal_error("SCI.registrarCompra: Error guardando compra.");
+            return response;
         }
+
+        // Guardar detalles
+        for (DetalleCompra detalle : detalles) {
+            detalle.setCompraId(compra.getId());
+
+            // Guardar detalle
+            if (!detalleCompraRepo.save(detalle).isOk()) {
+                response.internal_error("SCI.registrarCompra: Error al guardar detalle de compra.");
+                return response;
+            }
+        }
+
+        // Actualizar stock de productos - NUEVA LÓGICA EXTRACTADA
+        if (!actualizarStockPorCompra(detalles).isOk()) {
+            response.internal_error("SCI.registrarCompra: Error al actualizar Stock.");
+            return response;
+        }
+        response.exito();
+        return response;
     }
+
+
+    /**
+     * Actualiza la descripción de una compra.
+     *
+     * @param compra Contenedor de información.
+     * @return response, que contiene la respuesta de la función.
+     */
+    public Response actualizarDescripcionCompra(Compra compra) {
+        Response response = compraRepo.update(compra);
+
+        if (!response.isOk()) {
+            response.internal_error("SCI.actualizarDescripcionCompra: Error al actualizar descripción.");
+        }
+
+        return response;
+    }
+
 
     /**
      * Método para actualizar el stock de productos basado en los detalles de compra
      * Itera los detalles, suma la cantidad al stock de cada producto y persiste los cambios
+     *
      * @param detalles Lista de detalles de compra
      * @return true si se actualizó correctamente, false si hubo error
      */
-    public boolean actualizarStockPorCompra(List<DetalleCompra> detalles) {
-        try {
-            System.out.println("Iniciando actualización de stock para " + detalles.size() + " productos...");
+    public Response actualizarStockPorCompra(List<DetalleCompra> detalles) {
+        Response response = new Response();
+        for (DetalleCompra detalle : detalles) {
+            // Obtener el producto desde la base de datos
+            Response<Producto> request = productoRepo.findById(detalle.getProductoId());
 
-            for (DetalleCompra detalle : detalles) {
-                // Obtener el producto desde la base de datos
-                Producto producto = productoRepo.findById(detalle.getProductoId()).getContent();
-                if (producto == null) {
-                    System.err.println("Producto no encontrado con ID: " + detalle.getProductoId());
-                    return false;
+            if (!request.isOk()) {
+                response.internal_error("SCI.actualizarStockPorCompra: Error al obtener el producto, id= " + detalle.getId());
+                return response;
+            }
+
+            Producto producto = request.getContent();
+
+            // Verificar que el producto no sea temporal (O sea tabla log_producto_no_encontrado)
+            if (producto.getId() < 0) {
+                System.out.println("Producto con ID temporal " + producto.getId() + " - omitiendo actualización de stock");
+                continue;
+            }
+
+            // Calcular nuevo stock: stock actual + cantidad comprada
+            int stockActual = producto.getCantidad();
+            int nuevoStock = stockActual + detalle.getUnidades();
+
+            // Actualizar el stock del producto
+            producto.setCantidad(nuevoStock);
+
+            // Persistir cambios en la base de datos
+            if (!productoRepo.update(producto).isOk()) {
+                response.internal_error("SCI.actualizarStockPorCompra: Error al actualizar stock del producto ID: " + producto.getId());
+                return request;
+            }
+        }
+        response.exito();
+        return response;
+    }
+
+
+    /**
+     * Hace una lista de todas las compras.
+     * @return Response, te dice si hubo errores en el trayecto.
+     */
+    @Override
+    public Response<List<Map<String, Object>>> listarCompras() {
+        Response<List<Map<String, Object>>> response = new Response<>();
+
+        Response<List<Compra>> request = compraRepo.findAll();
+        if (!request.isOk()) {
+            response.internal_error("SCI.listarCompras: Error al listar las compras.");
+            return response;
+        }
+
+        //Hacemos una lista con las compras. La lista de mapas tendrá el contenido.
+        List<Compra> compras = request.getContent();
+        List<Map<String, Object>> listaMapas = new ArrayList<>();
+
+        //Por cada compra.
+        for (Compra c : compras) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", c.getId());
+            map.put("descripcion", c.getDescripcion());
+            map.put("monto", c.getMonto());
+
+            // Buscamos los detalles de esta compra para obtener una imagen de muestra.
+            Response<List<DetalleCompra>> det_request = detalleCompraRepo.findByCompraId(c.getId());
+            if(!det_request.isOk()){
+                response.internal_error("SCI.listaCompras: Error al obtener los detalles de compra de la compra con Id=" + c.getId());
+                return response;
+            }
+
+            List<DetalleCompra> detalles = det_request.getContent();
+            if (!detalles.isEmpty()) {
+                // Tomamos el primer producto de la compra para mostrar su foto
+                Response<Producto> prod_request = productoRepo.findById(detalles.get(0).getProductoId());
+                if(!prod_request.isOk()){
+                    response.internal_error("SCI.listaCompras: Error al obtener los detalles de compra de la compra con Id=" + c.getId());
+                    return response;
                 }
 
-                // Verificar que el producto no sea temporal (ID negativo)
-                if (producto.getId() < 0) {
-                    System.out.println("Producto con ID temporal " + producto.getId() + " - omitiendo actualización de stock");
-                    continue;
-                }
-
-                // Calcular nuevo stock: stock actual + cantidad comprada
-                int stockActual = producto.getCantidad();
-                int nuevoStock = stockActual + detalle.getUnidades();
-
-                System.out.println("Actualizando stock producto ID: " + producto.getId() +
-                        " - Stock anterior: " + stockActual +
-                        " + Unidades compradas: " + detalle.getUnidades() +
-                        " = Nuevo stock: " + nuevoStock);
-
-                // Actualizar el stock del producto
-                producto.setCantidad(nuevoStock);
-
-                // Persistir cambios en la base de datos
-                boolean actualizado = productoRepo.update(producto).isOk();
-                if (!actualizado) {
-                    System.err.println("Error al actualizar stock del producto ID: " + producto.getId());
-                    return false;
-                }
-
-                System.out.println("Stock actualizado correctamente para producto: " + producto.getNombre());
+                //Recuperamos el producto.
+                Producto p = prod_request.getContent();
+                map.put("imagePath", p.getImagePath());
             }
 
-            System.out.println("Actualización de stock completada exitosamente");
-            return true;
-
-        } catch (Exception e) {
-            System.err.println("Error en actualizarStockPorCompra: " + e.getMessage());
-            e.printStackTrace();
-            return false;
+            listaMapas.add(map);
         }
-    }
-
-    @Override
-    public DetalleCompra agregarProductoExistenteACompra(int productoId, int cantidad) {
-        try {
-            // 1. Validar que el producto existe
-            Producto producto = servicioProducto.obtenerPorId(productoId).getContent();
-            if (producto == null) {
-                throw new RuntimeException("Producto no encontrado con ID: " + productoId);
-            }
-
-            // 2. Validar cantidad
-            if (cantidad < CANTIDAD_MINIMA) {
-                throw new RuntimeException("La cantidad debe ser al menos " + CANTIDAD_MINIMA);
-            }
-
-            if (cantidad > CANTIDAD_MAXIMA) {
-                throw new RuntimeException("La cantidad no puede exceder " + CANTIDAD_MAXIMA);
-            }
-
-            // 3. Obtener el precio de compra del producto
-            double precioCompra = producto.getPrecioCompra();
-
-            // 4. Validar que el precio de compra sea válido
-            if (precioCompra < PRECIO_COMPRA_MINIMO) {
-                throw new RuntimeException("El precio de compra del producto no es válido: " + precioCompra);
-            }
-
-            // 5. Crear el detalle de compra con los datos automáticos
-            DetalleCompra detalle = new DetalleCompra();
-            detalle.setProductoId(productoId);
-            detalle.setUnidades(cantidad);
-            detalle.setPrecioUnitario(precioCompra);
-
-            System.out.println("Producto agregado a compra: " + producto.getNombre());
-            System.out.println("Precio de compra automático: " + precioCompra);
-            System.out.println("Cantidad: " + cantidad);
-
-            return detalle;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error al agregar producto existente a compra: " + e.getMessage());
-        }
-    }
-
-    @Override
-    public List<Compra> listarCompras() {
-        return compraRepo.findAll();
-    }
-
-    @Override
-    public DetalleCompra agregarProductoNuevoACompra(DetalleCompra detalle) {
-        try {
-            // 1. Validar datos básicos del detalle
-            if (!validarDetalleCompra(detalle)) {
-                throw new RuntimeException("Datos del producto inválidos");
-            }
-
-            // 2. Si el producto no tiene ID (es nuevo), generar uno temporal
-            if (detalle.getProductoId() <= 0) {
-                // Para productos nuevos, usar un ID temporal negativo
-                // Esto indica que es un producto que aún no existe en la base de datos
-                detalle.setProductoId(generarIdTemporal());
-            }
-
-            // 3. Retornar el detalle validado y listo para agregar a la compra
-            return detalle;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error al agregar producto a compra: " + e.getMessage());
-        }
-    }
-
-    @Override
-    public boolean validarDatosProductoNuevo(String codigo, int cantidad, double precioCompra) {
-        // 1. Validar código (no vacío y longitud razonable)
-        if (codigo == null || codigo.trim().isEmpty()) {
-            System.out.println("El código del producto no puede estar vacío");
-            return false;
-        }
-
-        if (codigo.trim().length() > 50) {
-            System.out.println("El código del producto es demasiado largo");
-            return false;
-        }
-
-        // 2. Validar cantidad
-        if (cantidad < CANTIDAD_MINIMA) {
-            System.out.println("La cantidad debe ser al menos " + CANTIDAD_MINIMA);
-            return false;
-        }
-
-        if (cantidad > CANTIDAD_MAXIMA) {
-            System.out.println("La cantidad no puede exceder " + CANTIDAD_MAXIMA);
-            return false;
-        }
-
-        // 3. Validar precio de compra
-        if (precioCompra < PRECIO_COMPRA_MINIMO) {
-            System.out.println("El precio de compra debe ser mayor a " + PRECIO_COMPRA_MINIMO);
-            return false;
-        }
-
-        if (precioCompra > PRECIO_COMPRA_MAXIMO) {
-            System.out.println("El precio de compra no puede exceder " + PRECIO_COMPRA_MAXIMO);
-            return false;
-        }
-
-        return true;
+        response.exito(listaMapas);
+        return response;
     }
 
     /**
-     * Valida los datos básicos de un DetalleCompra
+     * Elimina un detalle de compra específico.
+     * @param detalleId Identificador del detalle de compra.
+     * @return Response, te dice si hubo problemas en el trayecto.
      */
-    private boolean validarDetalleCompra(DetalleCompra detalle) {
-        if (detalle == null) {
-            System.out.println("El detalle de compra no puede ser nulo");
-            return false;
+    @Override
+    public Response eliminarDetalleCompra(int detalleId) {
+        Response response = new Response();
+
+        //Verifica si el detalle existe.
+        if (!detalleCompraRepo.findById(detalleId).isOk()) {
+            response.internal_error("SCI.eliminarDetalleCompra: Detalle indicado no encontrado, id= " + detalleId);
+            return response;
         }
 
-        // Validar unidades
-        if (detalle.getUnidades() < CANTIDAD_MINIMA) {
-            System.out.println("Las unidades deben ser al menos " + CANTIDAD_MINIMA);
-            return false;
+        //Elimina el detalle :v
+        if (!detalleCompraRepo.delete(detalleId).isOk()) {
+            response.internal_error("SCI.eliminarDetalleCompra: Error al eliminar el detalle de Compra.");
+            return response;
         }
 
-        if (detalle.getUnidades() > CANTIDAD_MAXIMA) {
-            System.out.println("Las unidades no pueden exceder " + CANTIDAD_MAXIMA);
-            return false;
-        }
-
-        // Validar que tenga al menos un identificador (productoId)
-        if (detalle.getProductoId() == 0) {
-            System.out.println("El producto debe tener un identificador válido");
-            return false;
-        }
-
-        return true;
+        response.isOk();
+        return response;
     }
 
     /**
-     * Genera un ID temporal para productos nuevos
-     * Los IDs temporales son negativos para diferenciarlos de los reales
+     * Cambia los datos del detalle de venta
+     * @param detalle_local Objeto con los datos nuevos.
+     * @return Response, te indica si hubo errores o no.
      */
-    private int generarIdTemporal() {
-        return -Math.abs(UUID.randomUUID().hashCode() % 1000000);
+    public Response editarDetalleCompra(DetalleCompra detalle_local) {
+        Response response = new Response();
+
+        //Validar que el detalle existe
+        Response<DetalleCompra> request = detalleCompraRepo.findById(detalle_local.getId());
+        if (!request.isOk()) {
+            response.internal_error("SCI.editarDetalleCompra: Error al editar el detalle de compra.");
+            return response;
+        }
+        DetalleCompra detalle_remoto = request.getContent();
+
+        //Que sea una cantidad válida
+        if (detalle_local.getUnidades() < CANTIDAD_MINIMA || detalle_local.getUnidades() > CANTIDAD_MAXIMA) {
+            response.internal_error("SCI.editarDetalleCompra: cantidad de compra fuera de los rangos. ctd= " + detalle_local.getUnidades());
+            return response;
+        }
+
+        //Que tenga un precio válido
+        if (detalle_local.getPrecioUnitario() < PRECIO_COMPRA_MINIMO || detalle_local.getPrecioUnitario() > PRECIO_COMPRA_MAXIMO) {
+            response.internal_error("SCI.editarDetalleCompra: precio de compra fuera de los rangos. ctd= " + detalle_local.getPrecioUnitario());
+            return response;
+        }
+
+        //Si en el detalle de compra no cambió de producto.
+        if(detalle_local.getProductoId() == detalle_remoto.getProductoId()){
+
+            //Si el stock del detalle local sube o baja, acá se mostrará cuánto.
+            int diferencia = detalle_local.getUnidades() - detalle_remoto.getUnidades();
+
+            //si esto es true, no hay ningún cambio q hacer porque es igual xd.
+            if(diferencia == 0 && detalle_local.getPrecioUnitario() == detalle_remoto.getPrecioUnitario()){
+                response.isOk();
+                return response;
+            }
+
+            //Recogemos el producto para actualizarle su stock.
+            Response<Producto> prod_request = productoRepo.findById(detalle_local.getProductoId());
+            if(!prod_request.isOk()){
+                response.internal_error("SCI.editarDetalleCompra: Error al obtener el producto con id= " + detalle_local.getProductoId());
+                return response;
+            }
+
+            //Actualizamos el stock.
+            Producto producto = prod_request.getContent();
+            producto.setCantidad(producto.getCantidad() + diferencia);
+
+            if(!productoRepo.update(producto).isOk()){
+                response.internal_error("SCI.editarDetalleCompra: Error al actualizar el stock del producto con id= " + detalle_local.getProductoId());
+                return response;
+            }
+
+        //En el caso de que haya cambiado de producto.
+        }else{
+
+            //Obtenemos el producto antiguo
+            Response<Producto> prod_down_request = productoRepo.findById(detalle_remoto.getProductoId());
+            if(!prod_down_request.isOk()){
+                response.internal_error("SCI.editarDetalleCompra: Error al obtener el producto con id= " + detalle_remoto.getProductoId());
+                return response;
+            }
+
+            //Le quitamos el stock otorgado (down)
+            Producto producto_down = prod_down_request.getContent();
+            producto_down.setCantidad(producto_down.getCantidad() - detalle_remoto.getUnidades());
+
+            //obtenemos el producto nuevo.
+            Response<Producto> prod_up_request = productoRepo.findById(detalle_local.getProductoId());
+            if(!prod_up_request.isOk()){
+                response.internal_error("SCI.editarDetalleCompra: Error al obtener el producto con id= " + detalle_local.getProductoId());
+                return response;
+            }
+            //Le ponemos más stock... Se le suma porque antes del cambio no se le destinó stock, ahora sí.
+            Producto producto_up = prod_up_request.getContent();
+            producto_up.setCantidad(producto_up.getCantidad() + detalle_local.getUnidades());
+
+        }
+
+
+        //Actualizamos ahora si el detalle de compra.
+        if (!detalleCompraRepo.update(detalle_local).isOk()) {
+            response.internal_error("SCI.editarDetalleCompra: Error al actualizar el detalle de compra.");
+            return response;
+        }
+
+        response.isOk();
+        return response;
     }
 
+    /**
+     * Elimina una compra y todos sus detalles de compra. Solo se ejecutará después de revisar errores e internet. Antes no.
+     *
+     * @param compraId Identificador de la compra.
+     * @return Response, indica si la función salió bien o no.
+     */
     @Override
-    public boolean eliminarDetalleCompra(int detalleId) {
-        try {
-            // 1. Validar que el detalle existe
-            DetalleCompra detalle = detalleCompraRepo.findById(detalleId);
-            if (detalle == null) {
-                System.out.println("Detalle de compra no encontrado con ID: " + detalleId);
-                return false;
-            }
+    public Response eliminarCompra(int compraId) {
+        String Sql = " ";
+        Response response = new Response();
 
-            System.out.println("Eliminando detalle de compra ID: " + detalleId +
-                    " de la compra ID: " + detalle.getCompraId());
-
-            // 2. Eliminar el detalle usando el repository
-            boolean eliminado = detalleCompraRepo.delete(detalleId);
-
-            if (eliminado) {
-                System.out.println("Detalle de compra eliminado exitosamente");
-            } else {
-                System.out.println("Error al eliminar detalle de compra");
-            }
-
-            return eliminado;
-
-        } catch (Exception e) {
-            System.err.println("Error en eliminarDetalleCompra: " + e.getMessage());
-            e.printStackTrace();
-            return false;
+        Response<Compra> compra_request = compraRepo.findById(compraId);
+        if (!compra_request.isOk()) {
+            response.internal_error("SCI.eliminarCompra: La compra seleccionada no existe. Id=" + compraId);
+            return response;
         }
-    }
 
-    public boolean editarDetalleCompra(int detalleId, int cantidad, double precio) {
-        try {
-            // 1. Validar que el detalle existe
-            DetalleCompra detalle = detalleCompraRepo.findById(detalleId);
-            if (detalle == null) {
-                System.out.println("Detalle de compra no encontrado con ID: " + detalleId);
-                return false;
-            }
+        Compra compra = compra_request.getContent();
+        Response<List<DetalleCompra>> detcompra_request = detalleCompraRepo.findByCompraId(compraId);
 
-            // 2. Validar cantidad
-            if (cantidad < CANTIDAD_MINIMA) {
-                System.out.println("La cantidad debe ser al menos " + CANTIDAD_MINIMA);
-                return false;
-            }
-
-            if (cantidad > CANTIDAD_MAXIMA) {
-                System.out.println("La cantidad no puede exceder " + CANTIDAD_MAXIMA);
-                return false;
-            }
-
-            // 3. Validar precio
-            if (precio < PRECIO_COMPRA_MINIMO) {
-                System.out.println("El precio debe ser mayor a " + PRECIO_COMPRA_MINIMO);
-                return false;
-            }
-
-            if (precio > PRECIO_COMPRA_MAXIMO) {
-                System.out.println("El precio no puede exceder " + PRECIO_COMPRA_MAXIMO);
-                return false;
-            }
-
-            // 4. Verificar si hubo cambios reales
-            boolean cambios = false;
-            if (detalle.getUnidades() != cantidad) {
-                System.out.println("Actualizando cantidad: " + detalle.getUnidades() + " → " + cantidad);
-                detalle.setUnidades(cantidad);
-                cambios = true;
-            }
-
-            if (detalle.getPrecioUnitario() != precio) {
-                System.out.println("Actualizando precio: " + detalle.getPrecioUnitario() + " → " + precio);
-                detalle.setPrecioUnitario(precio);
-                cambios = true;
-            }
-
-            if (!cambios) {
-                System.out.println("No hay cambios para aplicar al detalle ID: " + detalleId);
-                return true; // No hay cambios, pero no es un error
-            }
-
-            // 5. Actualizar el detalle en la base de datos
-            boolean actualizado = detalleCompraRepo.update(detalle);
-
-            if (actualizado) {
-                System.out.println("Detalle de compra actualizado exitosamente");
-                System.out.println("   - ID: " + detalleId);
-                System.out.println("   - Cantidad: " + cantidad);
-                System.out.println("   - Precio unitario: " + precio);
-            } else {
-                System.out.println("Error al actualizar detalle de compra");
-            }
-
-            return actualizado;
-
-        } catch (Exception e) {
-            System.err.println("Error en editarDetalleCompra: " + e.getMessage());
-            e.printStackTrace();
-            return false;
+        //Si es que la lista está vacía o hubo errores.
+        if (!detcompra_request.isOk()) {
+            response.internal_error("SCI.eliminarCompra: Los detalles de compra no fueron encontrados o la compra no tiene detalles. Id=" + compraId);
+            return response;
         }
-    }
 
-    @Override
-    public boolean eliminarCompra(int compraId) {
-        try {
-            // 1. Validar que la compra existe
-            Compra compra = compraRepo.findById(compraId);
-            if (compra == null) {
-                System.out.println("Compra no encontrada con ID: " + compraId);
-                return false;
+        List<DetalleCompra> detalles = detcompra_request.getContent();
+
+        // Revertir el stock de los productos. Solo se revierten si no saca un stock negativo.
+        for (DetalleCompra detalle : detalles) {
+
+            Response<Producto> prod_request = productoRepo.findById(detalle.getProductoId());
+            if (!prod_request.isOk()) {
+                response.internal_error("SCI.eliminarCompra: El producto referenciado en el detalle de compra no existe. Id = " + detalle.getProductoId());
+                return response;
             }
 
-            System.out.println("Eliminando compra ID: " + compraId + " - Descripción: " + compra.getDescripcion());
-
-            // 2. Obtener todos los detalles de la compra
-            List<DetalleCompra> detalles = detalleCompraRepo.findByCompraId(compraId);
-            System.out.println("Encontrados " + detalles.size() + " detalles para la compra ID: " + compraId);
-
-            // 3. Revertir el stock de los productos (restar lo que se había sumado en la compra)
-            for (DetalleCompra detalle : detalles) {
-                Producto producto = productoRepo.findById(detalle.getProductoId()).getContent();
-                if (producto != null) {
-                    // Validar que el producto no sea temporal (ID negativo)
-                    if (producto.getId() < 0) {
-                        System.out.println("Producto temporal ID: " + producto.getId() + " - omitiendo reversión de stock");
-                        continue;
-                    }
-
-                    int stockActual = producto.getCantidad();
-                    int nuevoStock = stockActual - detalle.getUnidades(); // RESTAMOS lo que se había sumado
-
-                    // Validar que no quede stock negativo
-                    if (nuevoStock < 0) {
-                        System.err.println("Advertencia: Stock negativo para producto ID: " + producto.getId() +
-                                " - Stock resultante: " + nuevoStock);
-                        // Podemos continuar o detener según tu política de negocio
-                    }
-
-                    System.out.println("Revirtiendo stock producto ID: " + producto.getId() +
-                            " - Stock actual: " + stockActual +
-                            " - Unidades compradas: " + detalle.getUnidades() +
-                            " = Nuevo stock: " + nuevoStock);
-
-                    producto.setCantidad(nuevoStock);
-                    boolean stockActualizado = productoRepo.update(producto).isOk();
-
-                    if (!stockActualizado) {
-                        System.err.println("Error al revertir stock del producto ID: " + producto.getId());
-                        return false;
-                    }
-                } else {
-                    System.err.println("Producto no encontrado ID: " + detalle.getProductoId() + " - continuando...");
-                }
+            Producto producto = prod_request.getContent();
+            // Validar que el producto no sea temporal (ID negativo)
+            if (producto.getId() < 0) {
+                System.out.println("Producto temporal ID: " + producto.getId() + " - omitiendo reversión de stock");
+                continue;
             }
 
-            // 4. Eliminar los detalles de compra primero (por integridad referencial)
-            for (DetalleCompra detalle : detalles) {
-                boolean detalleEliminado = detalleCompraRepo.delete(detalle.getId());
-                if (!detalleEliminado) {
-                    System.err.println("Error al eliminar detalle ID: " + detalle.getId());
-                    // Continuamos aunque falle uno, para intentar limpiar lo máximo posible
-                }
+            int stockActual = producto.getCantidad();
+            int nuevoStock = stockActual - detalle.getUnidades();
+
+            // Validar que no quede stock negativo
+            if (nuevoStock < 0) {
+                response.internal_error("SCI.eliminarCompra: Error.Si se elimina el detalle de compra (id=" +  detalle.getId() + ") el producto (id=" + producto.getId() + ") tendrá stock negativo.");
+                return response;
             }
 
-            // 5. Finalmente eliminar la compra
-            boolean compraEliminada = compraRepo.delete(compraId);
+            producto.setCantidad(nuevoStock);
 
-            if (compraEliminada) {
-                System.out.println(" Compra eliminada exitosamente:");
-                System.out.println("   - ID: " + compraId);
-                System.out.println("   - Descripción: " + compra.getDescripcion());
-                System.out.println("   - Monto: " + compra.getMonto());
-                System.out.println("   - Stock revertido para " + detalles.size() + " productos");
-            } else {
-                System.err.println(" Error al eliminar la compra de la base de datos");
-            }
-
-            return compraEliminada;
-
-        } catch (Exception e) {
-            System.err.println("Error en eliminarCompra: " + e.getMessage());
-            e.printStackTrace();
-            return false;
+            Sql += "UPDATE producto SET cantidad = " + producto.getCantidad() + " where id_producto = " + producto.getId() + "; \n";
         }
-    }
 
+        // La tabla detalleCOmpra no permite el borrado de registros sin antes borrar sus referencias.
+        for (DetalleCompra detalle : detalles) {
+            Sql += "DELETE from detalle_compra where id_detalle_compra = " + detalle.getId() + "; \n";
+        }
+
+        // Finalmente eliminamos la compra
+        Sql += "DELETE from compra where id_compra = " + compra.getId() + "; \n";
+
+        //Solo se manda la consulta al final para que, si es que de pronto se va el internet en medio de los for, no haya problemas con el stock de los productos.
+        if(!compraRepo.delete(Sql).isOk()){
+            response.internal_error("SCI.eliminarCompra: Error al eliminar la Compra.");
+        }
+
+        response.exito();
+        return response;
+
+    }
 
 
 

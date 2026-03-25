@@ -3,166 +3,89 @@ package io.carpets.repositories.implementacion;
 import io.carpets.Configuracion.ConfiguracionBaseDatos;
 import io.carpets.entidades.Usuario;
 import io.carpets.repositories.UsuarioRepository;
+import io.carpets.util.Response;
+
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class UsuarioRepositoryImplementacion implements UsuarioRepository {
 
     /**
-     * Registra un usuario.
-     * @param usuario Almacena toda la información del usuario a insertar.
-     * @return True si es que todo salió bien, false si es que hubo algún error.
+     * Permiteo el logeo del vendedor usando usuario y contraseña.
+     * @param username Nombre de usuario.
+     * @param password Contraseña (Debe ser idéntica).
+     * @return El usuario tal cual es.
      */
-    @Override
-    public boolean save(Usuario usuario) {
-        String sql = "INSERT INTO vendedor (nombre, rol, password) VALUES (?, ?, ?)";
+    public Response<Map<String, Object>> login(String username, String password) {
+        Response<Map<String, Object>> response = new Response<>();
+        Map<String, Object> Usuario = new HashMap<>();
+        String sql = "SELECT id_vendedor, nombre, rol from VENDEDOR WHERE nombre = ? AND password = ?";
+
+        //Abre una conexión
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pst = conn.prepareStatement(sql)){
 
-            stmt.setString(1, usuario.getNombre());
-            stmt.setString(2, usuario.getRol());
-            stmt.setString(3, usuario.getPassword());
+            pst.setString(1, username); //el primer "hueco" es el dni
+            pst.setString(2, password); //el segundo "hueco" es la contraseña cifrada
 
-            int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                ResultSet rs = stmt.getGeneratedKeys();
+            //Ejecuta el query
+            try(ResultSet rs = pst.executeQuery();){
                 if (rs.next()) {
-                    usuario.setId(rs.getInt(1));
+                    Usuario.put("status", "ok");
+                    Usuario.put("mensaje", "Bienvenido" + rs.getString("nombre"));
+
+                    //guardamos datos utiles para flutter
+                    Usuario.put("id", rs.getInt("id_vendedor"));
+                    Usuario.put("rol", rs.getString("rol")); // 'admin' o 'vendedor'
+                    Usuario.put("nombre", rs.getString("nombre"));
+                    response.exito(Usuario);
+                } else {
+                    // Credenciales incorrectas
+                    response.internal_error("URI.login: Credenciales incorrectas.");
                 }
-                return true;
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("URI.login: " + e.getMessage());
         }
-        return false;
+        return response;
     }
 
     /**
-     * Actualiza la información del usuario.
-     * @param usuario Contiene la información nueva del usuario. Esta info reemplaza a la de la base de datos.
-     * @return True si es que todo salió bien, false si es que hubo algún error.
+     * Encuentra al vendedor usando su id, normalmente usado para boletas.
+     * @param id Identificador del vendedor
+     * @return Objeto usuario con Nombre y Rol.
      */
-    @Override
-    public boolean update(Usuario usuario) {
-        String sql = "UPDATE vendedor SET nombre=?, rol=?, password=? WHERE id_vendedor=?";
+    public Response<Usuario> findUsuarioById(int id) {
+        Response<Usuario> response = new Response<>();
+        String sql = "SELECT nombre, rol from VENDEDOR WHERE id_vendedor = ?";
+
+        //Abre una conexión
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+             PreparedStatement pst = conn.prepareStatement(sql)){
 
-            stmt.setString(1, usuario.getNombre());
-            stmt.setString(2, usuario.getRol());
-            stmt.setString(3, usuario.getPassword());
-            stmt.setInt(4, usuario.getId());
+            pst.setInt(1, id);
 
-            return stmt.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    /**
-     * Elimina el registro de un vendedor usando su id.
-     * @param id Identificador del vendedor, se usa para ubicarlo.
-     * @return True si es que todo salió bien, false si es que hubo algún error.
-     */
-    @Override
-    public boolean delete(int id) {
-        String sql = "DELETE FROM vendedor WHERE id_vendedor=?";
-        try (Connection conn = ConfiguracionBaseDatos.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, id);
-            return stmt.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    /**
-     * Encuentra un vendedor usando su Id.
-     * @param id Identificador, usado para ubicar al usuario.
-     * @return Objeto usuario, si no es encontrado, retorna null.
-     */
-    @Override
-    public Usuario findById(int id) {
-        String sql = "SELECT * FROM vendedor WHERE id_vendedor=?";
-        try (Connection conn = ConfiguracionBaseDatos.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, id);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                Usuario u = new Usuario();
-                u.setId(rs.getInt("idvendedor"));
-                u.setNombre(rs.getString("nombre"));
-                u.setRol(rs.getString("rol"));
-                u.setPassword(rs.getString("password"));
-                return u;
+            //Ejecuta el query
+            try(ResultSet rs = pst.executeQuery();){
+                if (rs.next()) {
+                    Usuario vendedor = new Usuario();
+                    vendedor.setNombre(rs.getString("nombre"));
+                    vendedor.setRol(rs.getString("rol"));
+                    response.exito(vendedor);
+                } else {
+                    // Credenciales incorrectas
+                    response.internal_error("URI.findUsuarioById: Id no encontrado.");
+                }
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("URI.findUsuarioById: " + e.getMessage());
         }
-        return null;
+        return response;
     }
 
-    /**
-     * Encuentra al usuario usando su nombre.
-     * @param username Nombre completo del usuario. Debe ser identico al registrado.
-     * @return Objeto usuario con la información obtenida. Si no es encontrado, retorna null.
-     */
-    @Override
-    public Usuario findByUsername(String username) {
-        String sql = "SELECT * FROM vendedor WHERE nombre=?"; // Mantenemos la consulta por "nombre" en la BD
-        try (Connection conn = ConfiguracionBaseDatos.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setString(1, username); // Buscamos por el username que viene como parámetro
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                Usuario u = new Usuario();
-                u.setId(rs.getInt("id_vendedor"));
-                u.setNombre(rs.getString("nombre"));
-                u.setRol(rs.getString("rol"));
-                u.setPassword(rs.getString("password"));
-                return u;
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    /**
-     * Busca a todos los usuarios registrados.
-     * @return Lista tipo Usuario con todos los datos de los mismos.
-     */
-    @Override
-    public List<Usuario> findAll() {
-        List<Usuario> lista = new ArrayList<>();
-        String sql = "SELECT * FROM vendedor";
-        try (Connection conn = ConfiguracionBaseDatos.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-
-            while (rs.next()) {
-                Usuario u = new Usuario();
-                u.setId(rs.getInt("id_vendedor"));
-                u.setNombre(rs.getString("nombre"));
-                u.setRol(rs.getString("rol"));
-                u.setPassword(rs.getString("password"));
-                lista.add(u);
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return lista;
-    }
 }

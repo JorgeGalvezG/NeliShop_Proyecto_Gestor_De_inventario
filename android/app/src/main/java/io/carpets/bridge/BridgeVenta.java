@@ -12,7 +12,6 @@ public class BridgeVenta {
     private final String listarVentas = "listVentas";
     private final String registrarVenta = "regVenta";
 
-    // ... (otros strings se mantienen igual) ...
     private final String obtenerVentasPorDia = "getVentaPorDay";
     private final String eliminarVenta = "deleteVenta";
     private final String calcularMontosVentaCompleta = "calcMontVentCom";

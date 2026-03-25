@@ -303,7 +303,12 @@ public class ServicioVentaImplementacion implements ServicioVenta {
             Cliente cliente = clienteRepo.findByDni(venta.getClienteDni());
 
             // 3. Obtener datos del vendedor
-            Usuario vendedor = usuarioRepo.findById(venta.getVendedorId());
+            Response<Usuario> vendedorResponse = usuarioRepo.findUsuarioById(venta.getVendedorId());
+
+            if(!vendedorResponse.isOk()){
+                vendedorResponse.internal_error("SVI.generarBoleta: Error al obtener el vendedor.");
+                return null;
+            }
 
             // 4. Calcular montos de la boleta
             MontosCalculados montos = calcularMontosVentaCompleta(detalles);
@@ -326,7 +331,7 @@ public class ServicioVentaImplementacion implements ServicioVenta {
             return new BoletaVentaDTO(
                     venta,
                     cliente,
-                    vendedor,
+                    vendedorResponse.getContent(),
                     detalles,
                     montos.getSubtotal(),
                     montos.getIgvSolo(),

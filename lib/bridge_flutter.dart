@@ -1,5 +1,6 @@
 
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'config/core.dart';
 import 'config/constants.dart';
 
@@ -25,10 +26,10 @@ class BridgeFlutter {
       final result = await channel.invokeMethod(method, arguments);
       return result as T?;
     } on PlatformException catch (e) {
-      print("⚠️ Error de Plataforma en $method: ${e.message}");
+      print(" Error de Plataforma en $method: ${e.message}");
       return null;
     } catch (e) {
-      print("⚠️ Error Desconocido en $method: $e"); //ERROR
+      print(" Error Desconocido en $method: $e");
       return null;
     }
   }
@@ -154,9 +155,21 @@ class BridgeFlutter {
 
   // -------- COMPRAS --------
 
-  Future<JsonList> listarCompras() async {
-    final result = await _invoke<JsonList>(_channelCompra, AppConstants.methodListCompras);
-    return result ?? [];
+  Future<BridgeResponse> listarCompras() async {
+    try{
+      //Se obtienen la Lista de compras (En forma de mapas..
+      final result = await _invoke<dynamic>(_channelCompra, AppConstants.methodListCompras);
+
+      //Se verifica si entregó algo.
+      if(result == null){
+        return BridgeResponse().Internal_Error("BF.listarCompras: Resultado nulo, imposible seguir.");
+      }
+
+      //En caso el flujo haya salido bien.
+      return BridgeResponse.fromMap(result);
+    }catch(e){
+      return BridgeResponse().Internal_Error("BF.listarVentas: $e");
+    }
   }
 
   Future<BridgeResponse> registrarCompra(JsonMap compra, JsonList detalles) async {

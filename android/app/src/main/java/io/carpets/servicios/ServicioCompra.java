@@ -2,21 +2,22 @@ package io.carpets.servicios;
 
 import io.carpets.entidades.Compra;
 import io.carpets.entidades.DetalleCompra;
+import io.carpets.util.Response;
+
 import java.util.List;
+import java.util.Map;
 
 public interface ServicioCompra {
-    boolean registrarCompra(Compra compra, List<DetalleCompra> detalles);
-    List<Compra> listarCompras();
+    Response registrarCompra(Compra compra, List<DetalleCompra> detalles);
+    Response<List<Map<String, Object>>> listarCompras();
 
-    boolean actualizarStockPorCompra(List<DetalleCompra> detalles);
+    Response actualizarDescripcionCompra(Compra compra);
+    Response actualizarStockPorCompra(List<DetalleCompra> detalles);
 
-    boolean eliminarDetalleCompra(int detalleId);
+    Response eliminarDetalleCompra(int detalleId);
 
-    boolean editarDetalleCompra(int detalleId, int cantidad, double precio);
+    Response editarDetalleCompra(DetalleCompra detalle_local);
 
-    DetalleCompra agregarProductoNuevoACompra(DetalleCompra detalle);
-    boolean validarDatosProductoNuevo(String codigo, int cantidad, double precioCompra);
-    DetalleCompra agregarProductoExistenteACompra(int productoId, int cantidad);
 
-    boolean eliminarCompra(int compraId);
+    Response eliminarCompra(int compraId);
 }

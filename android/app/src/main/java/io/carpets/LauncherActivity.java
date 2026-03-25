@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.os.StrictMode;
 import androidx.annotation.NonNull;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import io.carpets.bridge.BridgeCompra;
@@ -114,14 +115,20 @@ public class LauncherActivity extends FlutterActivity {
                     new Thread(() -> {
                         try {
                             BridgeCompra BC = new BridgeCompra();
-                            Object respuesta = BC.Dirigir(call.method, (List<Object>) call.arguments);
+                            List<Object> Lista = new ArrayList<>();
+
+                            if(call.arguments != null){
+                                Lista = (List<Object>) call.arguments;
+                            }
+
+                            Object respuesta = BC.Dirigir(call.method, Lista);
 
                             runOnUiThread(() -> {
                                 result.success(respuesta);
                             });
                         } catch (Exception e) {
                             runOnUiThread(() -> {
-                                result.error("ERROR_COMPRA", "Error en hilo de compra: " + e.getMessage(), null);
+                                result.error("ERROR_COMPRA", "LauncherActivity: Error en hilo de compra: " + e.getMessage(), null);
                             });
                         }
                     }).start();
