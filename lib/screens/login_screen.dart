@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../bridge_flutter.dart';
 import '../../layout/main_layout.dart';
-import '../../config/core.dart';// Asegúrate de importar esto para los tipos
+import '../../config/core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -68,6 +69,21 @@ class _LoginScreenState extends State<LoginScreen> {
     if (response.isSuccess) {
 
       String rolRecibido = response.data['rol'] ?? 'vendedor';
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('rol', rolRecibido);
+
+      if (response.data['id'] != null) {
+        await prefs.setInt('vendedorId', response.data['id']);
+      }
+
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => MainLayout(userRole: rolRecibido),
+          ),
+        );
+      }
 
       //El programa decide cuánto del programa mostrar dependiendo del tipo de usuario
       Navigator.of(context).pushReplacement(

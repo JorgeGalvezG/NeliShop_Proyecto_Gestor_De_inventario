@@ -11,6 +11,17 @@ import java.util.Map;
     define los métodos CRUD para interactuar con la base de datos.
 */
 public interface UsuarioRepository {
-    public Response<Map<String, Object>> login(String username, String password);
-    public Response<Usuario> findUsuarioById(int id);
+
+    Response<Map<String, Object>> login(String username, String password);
+
+    // Cambiado de findUsuarioById a findById para mantener el estándar CRUD
+    Response<Usuario> findById(int id);
+
+    Response<Usuario> findByUsername(String username);
+
+    Response<List<Usuario>> findAll();
+
+    Response update(Usuario usuario);
+
+    Response delete(int id);
 }

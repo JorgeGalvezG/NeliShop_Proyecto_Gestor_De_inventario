@@ -65,6 +65,7 @@ public class    ServicioProductoImplementacion implements ServicioProducto {
 
     /**
      * Encuentra un producto utilizando su id.
+     *
      * @param id Identificador del producto.
      * @return Respuesta de la función, si hubo o no hubo error.
      */

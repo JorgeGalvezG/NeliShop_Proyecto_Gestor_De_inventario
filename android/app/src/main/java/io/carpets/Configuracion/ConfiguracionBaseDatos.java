@@ -5,46 +5,30 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import io.carpets.Credenciales;
 
-import java.sql.Timestamp;
-
-
-
 public class ConfiguracionBaseDatos {
 
-    // Datos de conexión
-    private static Connection connection = null;
-
-    // Obtener conexión
+    /**
+     * Fabrica y retorna una nueva conexion a la base de datos.
+     * Al devolver una instancia nueva en cada llamada, evitamos colisiones de hilos (Thread-Safety).
+     * El cierre de esta conexion se delega a los bloques try-with-resources de los Repositorios.
+     * * @return Connection Conexion activa a MySQL
+     * @throws SQLException Si falla la conexion o no se encuentra el driver
+     */
     public static Connection getConnection() throws SQLException {
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
 
-        //if (connection == null || connection.isClosed()) {
-            try {
-                // Cargar driver de MySQL
-                Class.forName("com.mysql.jdbc.Driver");
+            String url = "jdbc:mysql://" + Credenciales.HOST + ":" + Credenciales.PORT + "/" + Credenciales.DATABASE
+                    + "?useSSL=true&requireSSL=true&verifyServerCertificate=false"
+                    + "&serverTimezone=UTC&enabledTLSProtocols=TLSv1.2";
 
-                String url = "jdbc:mysql://" + Credenciales.HOST + ":" + Credenciales.PORT + "/" + Credenciales.DATABASE
-                        + "?useSSL=true&requireSSL=true&verifyServerCertificate=false&serverTimezone=UTC&enabledTLSProtocols=TLSv1.2";
-                connection = DriverManager.getConnection(url, Credenciales.USER, Credenciales.PASSWORD);
-                System.out.println("Conexión a la base de datos establecida.");
-            } catch (ClassNotFoundException e) {
-                System.err.println("ConfigBaseDatos.getConnection: " + e.getMessage());
-                throw new SQLException("ConfigBaseDatos.getConnection: Driver JDBC no encontrado.");
-            }
-       // }
-        return connection;
-    }
-    //necesitamos crear un time stamp dentro de las consultas para hacer el poryecto mas escalable y poderle sacar
-    //provecho a las actualizaciones dinamicas
+            // Se crea y retorna la conexion directamente.
+            // No se imprime en consola para no saturar el Logcat en consultas masivas.
+            return DriverManager.getConnection(url, Credenciales.USER, Credenciales.PASSWORD);
 
-    // Cerrar conexión
-    public static void cerrarConexion() {
-        if (connection != null) {
-            try {
-                connection.close();
-                System.out.println("Conexión cerrada correctamente.");
-            } catch (SQLException e) {
-                System.err.println("ConfigBaseDatos.cerrarConexion: " + e.getMessage());
-            }
+        } catch (ClassNotFoundException e) {
+            System.err.println("ConfiguracionBaseDatos.getConnection: " + e.getMessage());
+            throw new SQLException("ConfiguracionBaseDatos: Driver JDBC no encontrado.");
         }
     }
 }

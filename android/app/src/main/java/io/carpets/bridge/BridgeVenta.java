@@ -4,7 +4,7 @@ import io.carpets.flutterbridge.MethodChannelHandler;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.ArrayList; // Importante
+import java.util.ArrayList;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -31,7 +31,7 @@ public class BridgeVenta {
     }
 
     public Object Dirigir(String Funcion, List<Object> List) {
-        if (List.isEmpty()) {
+        if (List == null || List.isEmpty()) {
             return Redirigir(Funcion, List);
         } else if (List.size() == 1) {
             return RedirigirFunction(Funcion, List);
@@ -42,7 +42,7 @@ public class BridgeVenta {
 
     private Object Redirigir(String Funcion, List<Object> List) {
         Function<Object, Object> f = VoidFunc.get(Funcion);
-        return (f != null) ? f.apply(List) : null;
+        return (f != null) ? f.apply(null) : null;
     }
 
     private Object RedirigirFunction(String Funcion, List<Object> List) {

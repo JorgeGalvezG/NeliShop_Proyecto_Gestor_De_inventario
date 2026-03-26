@@ -1,204 +1,406 @@
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'config/core.dart';
 import 'config/constants.dart';
 
 class BridgeFlutter {
-  // Singleton
   static final BridgeFlutter _instance = BridgeFlutter._internal();
   factory BridgeFlutter() => _instance;
   BridgeFlutter._internal();
 
-  // Canales de comunicación con Android
-  // Usamos las constantes para evitar errores de escritura
-  final _channelLogin = const MethodChannel(AppConstants.channelLogin);
+  final _channelLogin    = const MethodChannel(AppConstants.channelLogin);
   final _channelProductos = const MethodChannel(AppConstants.channelProductos);
-  final _channelVenta = const MethodChannel(AppConstants.channelVenta);
-  final _channelCompra = const MethodChannel(AppConstants.channelCompra);
+  final _channelVenta    = const MethodChannel(AppConstants.channelVenta);
+  final _channelCompra   = const MethodChannel(AppConstants.channelCompra);
+
+  // CACHE LOCAL EN MEMORIA RAM
+  List<JsonMap>? _cachedProducts;
+  List<JsonMap>? _cachedVentas;
+  List<JsonMap>? _cachedCompras;
+  DateTime? _lastProductsFetch;
+  DateTime? _lastVentasFetch;
+  DateTime? _lastComprasFetch;
+
+  final Duration _cacheValidDuration = const Duration(minutes: 5);
+
+  // Usar kDebugMode para que los logs se apaguen automáticamente en release
+  bool get _enableCacheLogs => kDebugMode;
 
   // ---------------------------------------------------------------------------
-  // MÉTODO GENÉRICO DE LECTURA (GET)
+  // HELPER PRIVADO DE LOG
   // ---------------------------------------------------------------------------
-  /// Útil para obtener listas o datos simples donde si falla, devolver null es aceptable.
-  Future<T?> _invoke<T>(MethodChannel channel, String method, [dynamic arguments]) async {
-    try {
-      final result = await channel.invokeMethod(method, arguments);
-      return result as T?;
-    } on PlatformException catch (e) {
-      print(" Error de Plataforma en $method: ${e.message}");
-      return null;
-    } catch (e) {
-      print(" Error Desconocido en $method: $e");
-      return null;
-    }
+  void _log(String msg) {
+    if (_enableCacheLogs) debugPrint(msg); // debugPrint en lugar de print
   }
 
   // ---------------------------------------------------------------------------
-  // MÉTODOS DE NEGOCIO (OPTIMIZADOS)
+  // HELPER DE LECTURA (GET) CON CACHÉ — RETORNA BridgeResponse
   // ---------------------------------------------------------------------------
+  Future<BridgeResponse> _invokeListCached({
+    required MethodChannel channel,
+    required String method,
+    required List<JsonMap>? cache,
+    required DateTime? lastFetch,
+    required Function(List<JsonMap>, DateTime) onCacheUpdate,
+    bool forceRefresh = false,
+  }) async {
+    // 1. Verificar si tenemos caché válido
+    if (!forceRefresh && cache != null && lastFetch != null) {
+      final cacheAge = DateTime.now().difference(lastFetch);
 
-  // -------- LOGIN --------
-  Future<BridgeResponse> login(String dni, String password) async {
-    try {
-      final result = await _channelLogin.invokeMethod(
-          AppConstants.methodLogin,
-          [dni, password]
-      );
-      // Si Java devuelve un mapa, lo convertimos
-      if (result != null) {
-        return BridgeResponse.fromMap(result);
+      if (cacheAge < _cacheValidDuration) {
+        _log("📦 Usando caché para $method (edad: ${cacheAge.inSeconds}s)");
+        return BridgeResponse(status: 'ok', data: cache);
+      } else {
+        _log("⏰ Caché expirado para $method (edad: ${cacheAge.inMinutes}m)");
       }
-      return BridgeResponse().Internal_Error('BF.login: Respuesta inválida del servidor');
-
-    } on PlatformException catch (e) {
-      return BridgeResponse().Internal_Error('BF.login: ${ e.message ?? 'Error de conexión' }');
-    } catch (e) {
-      return BridgeResponse(status: 'error', mensaje: e.toString());
     }
-  }
 
-  // -------- PRODUCTOS --------
-
-  // Obtener lista (Usa el genérico _invoke para ser más rápido)
-  Future<BridgeResponse> obtenerProductos() async {
-    //Recibe la lista de Mapas<Object?, Object?> de GetProducts
-    // Hacer que el mapa tenga otros tipo de dato puede llevar a errores.
-    // Es posible llamar a los elementos del mapa usando Mapa['llave']
-    final request = await _invoke<dynamic>(
-        _channelProductos,
-        AppConstants.methodGetProducts,
-        []
-    );
-
-    BridgeResponse response;
-    
-    if(request == null){
-      response = BridgeResponse()
-          .Internal_Error("BF.obtenerProductos: Elementos no recibidos.");
-      return response;
-
-    }
-    response = BridgeResponse.fromMap(request);
-    
-    return response;
-  }
-
-  Future<BridgeResponse> agregarProducto(JsonMap producto) async {
-    return _ejecutarTransaccion(_channelProductos, AppConstants.methodAddProduct, [producto]);
-  }
-
-  Future<BridgeResponse> actualizarProducto(JsonMap producto) async {
-    return _ejecutarTransaccion(_channelProductos, AppConstants.methodEditProduct, [producto]);
-  }
-
-  Future<BridgeResponse> eliminarProducto(int id) async {
-    return _ejecutarTransaccion(_channelProductos, AppConstants.methodDeleteProduct, [id]);
-  }
-
-  Future<BridgeResponse> getGananciaTotal() async {
-    final result = await _invoke<dynamic>(
-        _channelProductos,
-        AppConstants.methodSumGanancia,
-        []
-    );
-
-    return result == null
-        ? BridgeResponse().Internal_Error("BF.getGananciaTotal: Respuesta vacía.")
-        : BridgeResponse.fromMap(result);
-  }
-
-  // -------- VENTAS --------
-
-  Future<BridgeResponse> registrarVenta(JsonMap venta, JsonList detalles) async {
+    // 2. Llamar al canal nativo
     try {
-      // Llamamos a Java
-      JsonMap? result = await _channelVenta.invokeMethod(
-          AppConstants.methodRegVenta,
-          [venta, detalles]
-      );
+      _log("🌐 Llamando al servidor nativo: $method");
 
-      // Java devuelve un entero (ID) si todo sale bien
-      if (result == null) {
-        return BridgeResponse().Internal_Error("BF.registrarVenta: Resultado nulo.");
-      }
-      return BridgeResponse.fromMap(result);
-
-
-    } on PlatformException catch (e) {
-      // ¡IMPORTANTE! Aquí capturamos el mensaje "Stock insuficiente" de Java
-      return BridgeResponse(status: 'error', mensaje: e.message);
-    } catch (e) {
-      return BridgeResponse(status: 'error', mensaje: e.toString());
-    }
-  }
-//solo devuelve un jsonlist en vez de un mapa
- /* Future<JsonList> listarVentas() async {
-    final result = await _invoke<JsonList>(_channelVenta, AppConstants.methodListVentas, []);
-    return result ?? [];
-  } */
-  //trabajando
-  Future<List<JsonMap>> listarVentas() async {
-    JsonList? result = await _invoke<JsonList>(
-        _channelVenta,
-        AppConstants.methodListVentas,
-        []);
+      final result = await channel.invokeMethod(method, []);
 
       if (result == null) {
-        return BridgeResponse().Internal_Error("BF.listarVentas: Resultado nulo, imposible seguir.");
+        return BridgeResponse(
+          status: 'error',
+          mensaje: 'Respuesta nula del servidor en $method',
+        );
       }
-      return BridgeResponse.fromMap(result);
-      // Si Java devuelve null o algo raro
+
+      List<dynamic> rawList = [];
+
+      // 3. Parseo inteligente: detecta Response de Java (Map) o lista directa
+      if (result is Map) {
+        final status = result['status']?.toString() ?? 'error';
+
+        if (status != 'ok') {
+          final msg = result['mensaje']?.toString() ?? 'Error desconocido en $method';
+          _log("Error backend en $method: $msg");
+          // Fallback silencioso con caché obsoleto si existe
+          if (cache != null) {
+            _log("Usando caché obsoleto como fallback");
+            return BridgeResponse(status: 'ok', data: cache, mensaje: 'datos_cache');
+          }
+          return BridgeResponse(status: 'error', mensaje: msg);
+        }
+
+        final content = result['Content'] ?? result['data'];
+        if (content is List) {
+          rawList = content;
+        } else {
+          _log("Formato inesperado en Response de $method");
+          return BridgeResponse(
+            status: 'error',
+            mensaje: 'Formato de respuesta inesperado en $method',
+          );
+        }
+      } else if (result is List) {
+        rawList = result;
+      } else {
+        _log("⚠️ Tipo de resultado inesperado en $method: ${result.runtimeType}");
+        return BridgeResponse(
+          status: 'error',
+          mensaje: 'Tipo de respuesta inesperado: ${result.runtimeType}',
+        );
+      }
+
+      // 4. Conversión segura a lista de mapas
+      final listaSegura = rawList
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+      // 5. Actualizar caché
+      final now = DateTime.now();
+      onCacheUpdate(listaSegura, now);
+      _log("Caché actualizado para $method (${listaSegura.length} registros)");
+
+      return BridgeResponse(status: 'ok', data: listaSegura);
+
+    } on PlatformException catch (e) {
+      // Fallback con caché obsoleto si existe
+      if (cache != null && lastFetch != null) {
+        final cacheAge = DateTime.now().difference(lastFetch);
+        _log("⚠️ Error de red en $method: ${e.message}");
+        _log("📦 Usando caché obsoleto (edad: ${cacheAge.inMinutes}m)");
+        return BridgeResponse(status: 'ok', data: cache, mensaje: 'datos_cache');
+      }
+      _log("❌ Error en $method sin caché disponible: ${e.message}");
+      return BridgeResponse(
+        status: 'error',
+        mensaje: e.message ?? 'Error nativo de plataforma',
+      );
 
     } catch (e) {
-      return BridgeResponse().Internal_Error("BF.listarVentas: $e");
-    }
-  }
-
-  // -------- COMPRAS --------
-
-  Future<BridgeResponse> listarCompras() async {
-    try{
-      //Se obtienen la Lista de compras (En forma de mapas..
-      final result = await _invoke<dynamic>(_channelCompra, AppConstants.methodListCompras);
-
-      //Se verifica si entregó algo.
-      if(result == null){
-        return BridgeResponse().Internal_Error("BF.listarCompras: Resultado nulo, imposible seguir.");
+      if (cache != null) {
+        _log("⚠️ Error desconocido en $method, usando caché: $e");
+        return BridgeResponse(status: 'ok', data: cache, mensaje: 'datos_cache');
       }
-
-      //En caso el flujo haya salido bien.
-      return BridgeResponse.fromMap(result);
-    }catch(e){
-      return BridgeResponse().Internal_Error("BF.listarVentas: $e");
+      _log("❌ Error desconocido en $method: $e");
+      return BridgeResponse(
+        status: 'error',
+        mensaje: 'Excepción local: $e',
+      );
     }
-  }
-
-  Future<BridgeResponse> registrarCompra(JsonMap compra, JsonList detalles) async {
-    return _ejecutarTransaccion(_channelCompra, AppConstants.methodRegCompra, [compra, detalles]);
   }
 
   // ---------------------------------------------------------------------------
   // HELPER PRIVADO PARA TRANSACCIONES (ESCRITURA)
   // ---------------------------------------------------------------------------
-  /// Este método maneja los try-catch de escritura para no repetir código
-  Future<BridgeResponse> _ejecutarTransaccion(MethodChannel channel, String method, dynamic args) async {
+  Future<BridgeResponse> _ejecutarTransaccion(
+      MethodChannel channel,
+      String method,
+      dynamic args,
+      ) async {
     try {
       final result = await channel.invokeMethod(method, args);
-      
-      if(result == null){
-        return BridgeResponse().Internal_Error("BF._ejecutarTransaccion: Transacción de tipo nulo.");
+
+      if (result == null) {
+        return BridgeResponse(
+          status: 'error',
+          mensaje: 'Respuesta nula del servidor',
+        );
       }
-      //Si hubo una respuesta, la regresamos.
-      return BridgeResponse.fromMap(result);
-      
+
+      if (result is Map) {
+        return BridgeResponse(
+          status: result['status']?.toString() ?? 'error',
+          mensaje: result['mensaje']?.toString(),
+          data: result['Content'] ?? result['data'] ?? result,
+        );
+      } else {
+        return BridgeResponse(status: 'ok', data: result);
+      }
+
     } on PlatformException catch (e) {
-      String message = e.message ?? "Error controlado en Java.";
-      
-      return BridgeResponse().Internal_Error("BF._ejecutarTransaccion: $message");
+      return BridgeResponse(
+        status: 'error',
+        mensaje: e.message ?? 'Error nativo de plataforma',
+      );
     } catch (e) {
-      //Errores inesperados.
-      return BridgeResponse().Internal_Error("BF._ejecutarTransaccion: $e");
+      return BridgeResponse(
+        status: 'error',
+        mensaje: 'Excepción local: $e',
+      );
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // MÉTODOS DE INVALIDACIÓN DE CACHÉ
+  // ---------------------------------------------------------------------------
+
+  void _invalidarCacheProductos() {
+    _cachedProducts = null;
+    _lastProductsFetch = null;
+    _log("🗑️ Caché de productos invalidado");
+  }
+
+  void _invalidarCacheVentas() {
+    _cachedVentas = null;
+    _lastVentasFetch = null;
+    _log("🗑️ Caché de ventas invalidado");
+  }
+
+  void _invalidarCacheCompras() {
+    _cachedCompras = null;
+    _lastComprasFetch = null;
+    _log("🗑️ Caché de compras invalidado");
+  }
+
+  /// Limpia toda la memoria. Recomendado al hacer log-out.
+  void invalidarTodoElCache() {
+    _invalidarCacheProductos();
+    _invalidarCacheVentas();
+    _invalidarCacheCompras();
+    _log("🗑️ Todos los cachés invalidados");
+  }
+
+  // ---------------------------------------------------------------------------
+  // MÉTODOS DE NEGOCIO
+  // ---------------------------------------------------------------------------
+
+  // -------- LOGIN --------
+  Future<BridgeResponse> login(String dni, String password) async {
+    final response = await _ejecutarTransaccion(
+      _channelLogin,
+      AppConstants.methodLogin,
+      [dni, password],
+    );
+
+    if (response.isSuccess) {
+      invalidarTodoElCache();
+    }
+
+    return response;
+  }
+
+  // -------- PRODUCTOS --------
+
+  Future<BridgeResponse> obtenerProductos({bool forceRefresh = false}) async {
+    return _invokeListCached(
+      channel: _channelProductos,
+      method: AppConstants.methodGetProducts,
+      cache: _cachedProducts,
+      lastFetch: _lastProductsFetch,
+      forceRefresh: forceRefresh,
+      onCacheUpdate: (lista, timestamp) {
+        _cachedProducts = lista;
+        _lastProductsFetch = timestamp;
+      },
+    );
+  }
+
+  Future<BridgeResponse> agregarProducto(JsonMap producto) async {
+    final res = await _ejecutarTransaccion(
+      _channelProductos,
+      AppConstants.methodAddProduct,
+      [producto],
+    );
+    if (res.isSuccess) _invalidarCacheProductos();
+    return res;
+  }
+
+  Future<BridgeResponse> actualizarProducto(JsonMap producto) async {
+    final res = await _ejecutarTransaccion(
+      _channelProductos,
+      AppConstants.methodEditProduct,
+      [producto],
+    );
+    if (res.isSuccess) _invalidarCacheProductos();
+    return res;
+  }
+
+  Future<BridgeResponse> eliminarProducto(int id) async {
+    final res = await _ejecutarTransaccion(
+      _channelProductos,
+      AppConstants.methodDeleteProduct,
+      [id],
+    );
+    if (res.isSuccess) _invalidarCacheProductos();
+    return res;
+  }
+
+  Future<double> getGananciaTotal() async {
+    try {
+      final result = await _channelProductos.invokeMethod(
+        AppConstants.methodSumGanancia,
+      );
+
+      if (result is Map) {
+        if (result['status'] == 'ok') {
+          final content = result['Content'] ?? result['data'];
+          if (content is num) return content.toDouble();
+        }
+        return 0.0;
+      }
+
+      return result is num ? result.toDouble() : 0.0;
+    } catch (e) {
+      _log("⚠️ Error obteniendo ganancia: $e");
+      return 0.0;
+    }
+  }
+
+  // -------- VENTAS --------
+
+  Future<BridgeResponse> registrarVenta(JsonMap venta, JsonList detalles) async {
+    final response = await _ejecutarTransaccion(
+      _channelVenta,
+      AppConstants.methodRegVenta,
+      [venta, detalles],
+    );
+
+    if (response.isSuccess) {
+      _invalidarCacheProductos();
+      _invalidarCacheVentas();
+    }
+
+    return response;
+  }
+
+  //  Retorna BridgeResponse en lugar de List<JsonMap>
+  Future<BridgeResponse> listarVentas({bool forceRefresh = false}) async {
+    return _invokeListCached(
+      channel: _channelVenta,
+      method: AppConstants.methodListVentas,
+      cache: _cachedVentas,
+      lastFetch: _lastVentasFetch,
+      forceRefresh: forceRefresh,
+      onCacheUpdate: (lista, timestamp) {
+        _cachedVentas = lista;
+        _lastVentasFetch = timestamp;
+      },
+    );
+  }
+
+  // -------- COMPRAS --------
+
+  // Retorna BridgeResponse en lugar de List<JsonMap>
+  Future<BridgeResponse> listarCompras({bool forceRefresh = false}) async {
+    return _invokeListCached(
+      channel: _channelCompra,
+      method: AppConstants.methodListCompras,
+      cache: _cachedCompras,
+      lastFetch: _lastComprasFetch,
+      forceRefresh: forceRefresh,
+      onCacheUpdate: (lista, timestamp) {
+        _cachedCompras = lista;
+        _lastComprasFetch = timestamp;
+      },
+    );
+  }
+
+  Future<BridgeResponse> registrarCompra(JsonMap compra, JsonList detalles) async {
+    final res = await _ejecutarTransaccion(
+      _channelCompra,
+      AppConstants.methodRegCompra,
+      [compra, detalles],
+    );
+
+    if (res.isSuccess) {
+      _invalidarCacheProductos();
+      _invalidarCacheCompras();
+    }
+
+    return res;
+  }
+
+  // ---------------------------------------------------------------------------
+  // MÉTODOS ÚTILES PARA DEBUGGING
+  // ---------------------------------------------------------------------------
+
+  Map<String, dynamic> getCacheStatus() {
+    return {
+      'productos': {
+        'cached': _cachedProducts != null,
+        'count': _cachedProducts?.length ?? 0,
+        'age_seconds': _lastProductsFetch != null
+            ? DateTime.now().difference(_lastProductsFetch!).inSeconds
+            : null,
+      },
+      'ventas': {
+        'cached': _cachedVentas != null,
+        'count': _cachedVentas?.length ?? 0,
+        'age_seconds': _lastVentasFetch != null
+            ? DateTime.now().difference(_lastVentasFetch!).inSeconds
+            : null,
+      },
+      'compras': {
+        'cached': _cachedCompras != null,
+        'count': _cachedCompras?.length ?? 0,
+        'age_seconds': _lastComprasFetch != null
+            ? DateTime.now().difference(_lastComprasFetch!).inSeconds
+            : null,
+      },
+    };
+  }
+
+  void printCacheStatus() {
+    final status = getCacheStatus();
+    _log("📊 Estado del Caché:");
+    _log("  Productos: ${status['productos']}");
+    _log("  Ventas: ${status['ventas']}");
+    _log("  Compras: ${status['compras']}");
   }
 }

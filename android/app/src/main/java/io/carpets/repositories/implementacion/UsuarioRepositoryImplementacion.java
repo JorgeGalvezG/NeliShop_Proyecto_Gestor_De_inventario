@@ -5,7 +5,10 @@ import io.carpets.entidades.Usuario;
 import io.carpets.repositories.UsuarioRepository;
 import io.carpets.util.Response;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -13,38 +16,26 @@ import java.util.Map;
 
 public class UsuarioRepositoryImplementacion implements UsuarioRepository {
 
-    /**
-     * Permiteo el logeo del vendedor usando usuario y contraseña.
-     * @param username Nombre de usuario.
-     * @param password Contraseña (Debe ser idéntica).
-     * @return El usuario tal cual es.
-     */
+    // Ejecuta la autenticacion consultando credenciales en la base de datos
     public Response<Map<String, Object>> login(String username, String password) {
         Response<Map<String, Object>> response = new Response<>();
-        Map<String, Object> Usuario = new HashMap<>();
-        String sql = "SELECT id_vendedor, nombre, rol from VENDEDOR WHERE nombre = ? AND password = ?";
+        String sql = "SELECT id_vendedor, nombre, rol FROM vendedor WHERE nombre = ? AND password = ?";
 
-        //Abre una conexión
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
-             PreparedStatement pst = conn.prepareStatement(sql)){
+             PreparedStatement pst = conn.prepareStatement(sql)) {
 
-            pst.setString(1, username); //el primer "hueco" es el dni
-            pst.setString(2, password); //el segundo "hueco" es la contraseña cifrada
+            pst.setString(1, username);
+            pst.setString(2, password);
 
-            //Ejecuta el query
-            try(ResultSet rs = pst.executeQuery();){
+            try (ResultSet rs = pst.executeQuery()) {
                 if (rs.next()) {
-                    Usuario.put("status", "ok");
-                    Usuario.put("mensaje", "Bienvenido" + rs.getString("nombre"));
-
-                    //guardamos datos utiles para flutter
-                    Usuario.put("id", rs.getInt("id_vendedor"));
-                    Usuario.put("rol", rs.getString("rol")); // 'admin' o 'vendedor'
-                    Usuario.put("nombre", rs.getString("nombre"));
-                    response.exito(Usuario);
+                    Map<String, Object> usuarioData = new HashMap<>();
+                    usuarioData.put("id", rs.getInt("id_vendedor"));
+                    usuarioData.put("rol", rs.getString("rol"));
+                    usuarioData.put("nombre", rs.getString("nombre"));
+                    response.exito(usuarioData);
                 } else {
-                    // Credenciales incorrectas
-                    response.internal_error("URI.login: Credenciales incorrectas.");
+                    response.message_error("Credenciales incorrectas.");
                 }
             }
 
@@ -54,38 +45,141 @@ public class UsuarioRepositoryImplementacion implements UsuarioRepository {
         return response;
     }
 
-    /**
-     * Encuentra al vendedor usando su id, normalmente usado para boletas.
-     * @param id Identificador del vendedor
-     * @return Objeto usuario con Nombre y Rol.
-     */
-    public Response<Usuario> findUsuarioById(int id) {
+    // Encuentra a un vendedor por su identificador unico
+    @Override
+    public Response<Usuario> findById(int id) {
         Response<Usuario> response = new Response<>();
-        String sql = "SELECT nombre, rol from VENDEDOR WHERE id_vendedor = ?";
+        String sql = "SELECT * FROM vendedor WHERE id_vendedor = ?";
 
-        //Abre una conexión
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
-             PreparedStatement pst = conn.prepareStatement(sql)){
+             PreparedStatement pst = conn.prepareStatement(sql)) {
 
             pst.setInt(1, id);
 
-            //Ejecuta el query
-            try(ResultSet rs = pst.executeQuery();){
+            try (ResultSet rs = pst.executeQuery()) {
                 if (rs.next()) {
-                    Usuario vendedor = new Usuario();
-                    vendedor.setNombre(rs.getString("nombre"));
-                    vendedor.setRol(rs.getString("rol"));
-                    response.exito(vendedor);
+                    Usuario u = new Usuario();
+                    u.setId(rs.getInt("id_vendedor"));
+                    u.setNombre(rs.getString("nombre"));
+                    u.setRol(rs.getString("rol"));
+                    u.setPassword(rs.getString("password"));
+                    response.exito(u);
                 } else {
-                    // Credenciales incorrectas
-                    response.internal_error("URI.findUsuarioById: Id no encontrado.");
+                    response.message_error("Vendedor no encontrado con ID: " + id);
                 }
             }
 
         } catch (SQLException e) {
-            response.internal_error("URI.findUsuarioById: " + e.getMessage());
+            response.internal_error("URI.findById: " + e.getMessage());
         }
         return response;
     }
 
+    // Busca a un vendedor especifico utilizando su nombre de usuario
+    @Override
+    public Response<Usuario> findByUsername(String username) {
+        Response<Usuario> response = new Response<>();
+        String sql = "SELECT * FROM vendedor WHERE nombre = ?";
+
+        try (Connection conn = ConfiguracionBaseDatos.getConnection();
+             PreparedStatement pst = conn.prepareStatement(sql)) {
+
+            pst.setString(1, username);
+
+            try (ResultSet rs = pst.executeQuery()) {
+                if (rs.next()) {
+                    Usuario u = new Usuario();
+                    u.setId(rs.getInt("id_vendedor"));
+                    u.setNombre(rs.getString("nombre"));
+                    u.setRol(rs.getString("rol"));
+                    u.setPassword(rs.getString("password"));
+                    response.exito(u);
+                } else {
+                    response.message_error("Vendedor no encontrado con nombre: " + username);
+                }
+            }
+
+        } catch (SQLException e) {
+            response.internal_error("URI.findByUsername: " + e.getMessage());
+        }
+        return response;
+    }
+
+    // Recupera la lista completa de vendedores registrados
+    @Override
+    public Response<List<Usuario>> findAll() {
+        Response<List<Usuario>> response = new Response<>();
+        List<Usuario> lista = new ArrayList<>();
+        String sql = "SELECT * FROM vendedor";
+
+        try (Connection conn = ConfiguracionBaseDatos.getConnection();
+             PreparedStatement pst = conn.prepareStatement(sql);
+             ResultSet rs = pst.executeQuery()) {
+
+            while (rs.next()) {
+                Usuario u = new Usuario();
+                u.setId(rs.getInt("id_vendedor"));
+                u.setNombre(rs.getString("nombre"));
+                u.setRol(rs.getString("rol"));
+                u.setPassword(rs.getString("password"));
+                lista.add(u);
+            }
+            response.exito(lista);
+
+        } catch (SQLException e) {
+            response.internal_error("URI.findAll: " + e.getMessage());
+        }
+        return response;
+    }
+
+    // Sobrescribe los datos de un vendedor existente
+    @Override
+    public Response update(Usuario usuario) {
+        Response response = new Response();
+        String sql = "UPDATE vendedor SET nombre = ?, rol = ?, password = ? WHERE id_vendedor = ?";
+
+        try (Connection conn = ConfiguracionBaseDatos.getConnection();
+             PreparedStatement pst = conn.prepareStatement(sql)) {
+
+            pst.setString(1, usuario.getNombre());
+            pst.setString(2, usuario.getRol());
+            pst.setString(3, usuario.getPassword());
+            pst.setInt(4, usuario.getId());
+
+            int filasAfectadas = pst.executeUpdate();
+            if (filasAfectadas > 0) {
+                response.exito();
+            } else {
+                response.message_error("No se pudo actualizar. El vendedor no existe.");
+            }
+
+        } catch (SQLException e) {
+            response.internal_error("URI.update: " + e.getMessage());
+        }
+        return response;
+    }
+
+    // Elimina fisicamente el registro de un vendedor
+    @Override
+    public Response delete(int id) {
+        Response response = new Response();
+        String sql = "DELETE FROM vendedor WHERE id_vendedor = ?";
+
+        try (Connection conn = ConfiguracionBaseDatos.getConnection();
+             PreparedStatement pst = conn.prepareStatement(sql)) {
+
+            pst.setInt(1, id);
+
+            int filasAfectadas = pst.executeUpdate();
+            if (filasAfectadas > 0) {
+                response.exito();
+            } else {
+                response.message_error("No se pudo eliminar. El vendedor no existe.");
+            }
+
+        } catch (SQLException e) {
+            response.internal_error("URI.delete: " + e.getMessage());
+        }
+        return response;
+    }
 }

@@ -3,110 +3,133 @@ package io.carpets.repositories.implementacion;
 import io.carpets.Configuracion.ConfiguracionBaseDatos;
 import io.carpets.entidades.Cliente;
 import io.carpets.repositories.ClienteRepository;
-import java.sql.*;
+import io.carpets.util.Response;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ClienteRepositoryImplementacion implements ClienteRepository {
 
     /**
-     * Registra a algun cliente
-     * @param cliente Información del cliente
-     * @return true si es que todo salió bien, false si es que hubo algún error.
+     * Registra a algún cliente en la base de datos.
      */
     @Override
-    public boolean save(Cliente cliente) {
+    public Response save(Cliente cliente) {
+        Response response = new Response();
         String sql = "INSERT INTO cliente (nombre, dni) VALUES (?, ?)";
+
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, cliente.getNombre());
             stmt.setString(2, cliente.getDni());
 
-            return stmt.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    /**
-     * Actualiza la información de un cliente
-     * @param cliente Contiene la información de un cliente.
-     * @return true si es que todo salió bien, false si es que hubo algún error.
-     */
-    @Override
-    public boolean update(Cliente cliente) {
-        String sql = "UPDATE cliente SET nombre=? WHERE dni=?";
-        try (Connection conn = ConfiguracionBaseDatos.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setString(1, cliente.getNombre());
-            stmt.setString(2, cliente.getDni());
-
-            return stmt.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    /**
-     * Eliminar a un cliente
-     * @param dni Dni del cliente, se usa para identificar al usuario
-     * @return true si es que todo salió bien, false si es que hubo algún error
-     */
-    @Override
-    public boolean delete(String dni) {
-        String sql = "DELETE FROM cliente WHERE dni=?";
-        try (Connection conn = ConfiguracionBaseDatos.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setString(1, dni);
-            return stmt.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    /**
-     * Encuentra al usuario usando su dni como identificador.
-     * @param dni dni del usuario
-     * @return Si todo sale bien retorna un cliente, sino un nulo.
-     */
-    @Override
-    public Cliente findByDni(String dni) {
-        String sql = "SELECT * FROM cliente WHERE dni=?";
-        try (Connection conn = ConfiguracionBaseDatos.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setString(1, dni);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                Cliente cliente = new Cliente();
-                cliente.setNombre(rs.getString("nombre"));
-                cliente.setDni(rs.getString("dni"));
-                return cliente;
+            if (stmt.executeUpdate() > 0) {
+                response.exito();
+            } else {
+                response.message_error("No se pudo registrar al cliente.");
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("CRI.save: " + e.getMessage());
         }
-        return null;
+        return response;
     }
 
     /**
-     * Encuentra todos los clientes registrados. No se para que se usaría.
-     * @return Una lista con los clientes, si no hay, una lista vacía.
+     * Actualiza la información de un cliente existente.
      */
     @Override
-    public List<Cliente> findAll() {
+    public Response update(Cliente cliente) {
+        Response response = new Response();
+        String sql = "UPDATE cliente SET nombre=? WHERE dni=?";
+
+        try (Connection conn = ConfiguracionBaseDatos.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, cliente.getNombre());
+            stmt.setString(2, cliente.getDni());
+
+            if (stmt.executeUpdate() > 0) {
+                response.exito();
+            } else {
+                response.message_error("No se pudo actualizar. El cliente no existe.");
+            }
+
+        } catch (SQLException e) {
+            response.internal_error("CRI.update: " + e.getMessage());
+        }
+        return response;
+    }
+
+    /**
+     * Elimina a un cliente de la base de datos.
+     */
+    @Override
+    public Response delete(String dni) {
+        Response response = new Response();
+        String sql = "DELETE FROM cliente WHERE dni=?";
+
+        try (Connection conn = ConfiguracionBaseDatos.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, dni);
+
+            if (stmt.executeUpdate() > 0) {
+                response.exito();
+            } else {
+                response.message_error("No se pudo eliminar. El cliente no fue encontrado.");
+            }
+
+        } catch (SQLException e) {
+            response.internal_error("CRI.delete: " + e.getMessage());
+        }
+        return response;
+    }
+
+    /**
+     * Encuentra al usuario usando su DNI como identificador.
+     */
+    @Override
+    public Response<Cliente> findByDni(String dni) {
+        Response<Cliente> response = new Response<>();
+        String sql = "SELECT * FROM cliente WHERE dni=?";
+
+        try (Connection conn = ConfiguracionBaseDatos.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, dni);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    Cliente cliente = new Cliente();
+                    cliente.setNombre(rs.getString("nombre"));
+                    cliente.setDni(rs.getString("dni"));
+                    response.exito(cliente);
+                } else {
+                    response.message_error("Cliente no encontrado con DNI: " + dni);
+                }
+            }
+
+        } catch (SQLException e) {
+            response.internal_error("CRI.findByDni: " + e.getMessage());
+        }
+        return response;
+    }
+
+    /**
+     * Encuentra todos los clientes registrados.
+     */
+    @Override
+    public Response<List<Cliente>> findAll() {
+        Response<List<Cliente>> response = new Response<>();
         List<Cliente> lista = new ArrayList<>();
         String sql = "SELECT * FROM cliente";
+
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
@@ -117,58 +140,66 @@ public class ClienteRepositoryImplementacion implements ClienteRepository {
                 cliente.setDni(rs.getString("dni"));
                 lista.add(cliente);
             }
+            response.exito(lista);
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("CRI.findAll: " + e.getMessage());
         }
-        return lista;
+        return response;
     }
 
     /**
      * Encuentra una lista de clientes que contengan cierto nombre.
-     * @param nombre nombre del usuario
-     * @return Retorna una lista de coincidencias, si no hay, una lista vacía.
      */
-    public List<Cliente> findByNombre(String nombre) {
+    public Response<List<Cliente>> findByNombre(String nombre) {
+        Response<List<Cliente>> response = new Response<>();
         List<Cliente> lista = new ArrayList<>();
         String sql = "SELECT * FROM cliente WHERE nombre LIKE ?";
+
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, "%" + nombre + "%");
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                Cliente cliente = new Cliente();
-                cliente.setNombre(rs.getString("nombre"));
-                cliente.setDni(rs.getString("dni"));
-                lista.add(cliente);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Cliente cliente = new Cliente();
+                    cliente.setNombre(rs.getString("nombre"));
+                    cliente.setDni(rs.getString("dni"));
+                    lista.add(cliente);
+                }
+                response.exito(lista);
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("CRI.findByNombre: " + e.getMessage());
         }
-        return lista;
+        return response;
     }
 
     /**
-     * Se usa el dni para verificar si un cliente existe en la base de datos.
-     * @param dni Identificador del cliente.
-     * @return Retorna true o false segun exista el cliente.
+     * Verifica de forma booleana si un cliente existe en la base de datos.
      */
-    public boolean existePorDni(String dni) {
+    public Response<Boolean> existePorDni(String dni) {
+        Response<Boolean> response = new Response<>();
         String sql = "SELECT COUNT(*) FROM cliente WHERE dni=?";
+
         try (Connection conn = ConfiguracionBaseDatos.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, dni);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    response.exito(rs.getInt(1) > 0);
+                } else {
+                    response.exito(false);
+                }
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            response.internal_error("CRI.existePorDni: " + e.getMessage());
         }
-        return false;
+        return response;
     }
 }

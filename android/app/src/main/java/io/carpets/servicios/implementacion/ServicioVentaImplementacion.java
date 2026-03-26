@@ -1,5 +1,6 @@
 package io.carpets.servicios.implementacion;
 
+import io.carpets.DTOs.VentaCompletaDTO;
 import io.carpets.entidades.Venta;
 import io.carpets.entidades.DetalleVenta;
 import io.carpets.entidades.Producto;
@@ -24,8 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.TimeZone; // <--- AGREGAR IMPORT
-import java.util.Calendar; // <--- AGREGAR IMPORT
+import java.util.TimeZone;
+import java.util.Calendar;
 
 public class ServicioVentaImplementacion implements ServicioVenta {
 
@@ -49,26 +50,25 @@ public class ServicioVentaImplementacion implements ServicioVenta {
         try {
             // 1. Validar DNI (Formato básico)
             if (venta.getClienteDni() == null || venta.getClienteDni().length() != 8) {
-                // Si viene vacío o mal, forzamos uno genérico o lanzamos error.
-                // Pero como vamos a generar aleatorios, asumimos que viene bien.
                 throw new RuntimeException("DNI inválido: " + venta.getClienteDni());
             }
 
-            // --- AUTO-REGISTRO DE CLIENTE (NUEVO) ---
-            // Verificamos si el cliente existe. Si es null, lo creamos.
-            Cliente clienteExistente = clienteRepo.findByDni(venta.getClienteDni());
+            // --- AUTO-REGISTRO DE CLIENTE ---
+            // Extraer el cliente verificando el Response
+            Response<Cliente> resCliente = clienteRepo.findByDni(venta.getClienteDni());
+            Cliente clienteExistente = resCliente.isOk() ? resCliente.getContent() : null;
+
             if (clienteExistente == null) {
                 System.out.println("Cliente nuevo detectado (" + venta.getClienteDni() + "). Registrando automáticamente...");
                 Cliente nuevoCliente = new Cliente();
                 nuevoCliente.setDni(venta.getClienteDni());
-                nuevoCliente.setNombre("Cliente " + venta.getClienteDni()); // Nombre genérico
-                boolean clienteGuardado = clienteRepo.save(nuevoCliente);
+                nuevoCliente.setNombre("Cliente " + venta.getClienteDni());
 
-                if (!clienteGuardado) {
+                Response resGuardar = clienteRepo.save(nuevoCliente);
+                if (!resGuardar.isOk()) {
                     throw new RuntimeException("No se pudo auto-registrar al cliente " + venta.getClienteDni());
                 }
             }
-            // ----------------------------------------
 
             // 2. Validar que todos los productos existen
             for (DetalleVenta detalle : detalles) {
@@ -77,43 +77,38 @@ public class ServicioVentaImplementacion implements ServicioVenta {
                 }
             }
 
-            // ... (El resto del código sigue igual: validación de precios, stock, cálculos, etc.) ...
-
             // 3. Calcular montos totales
             MontosCalculados montosVenta = calcularMontosVentaCompleta(detalles);
             venta.setMonto(montosVenta.getTotalConIGV());
 
             // 4. Obtener ID y Numero Boleta
-            int proximoId = obtenerProximoIdVenta(); // Asegúrate de tener este método auxiliar o usar auto-increment
-
-            // ... (Resto de tu lógica original) ...
-
-            // Si usas auto-increment en BD, el save llenará el ID.
-            // Si usas tu lógica manual:
+            int proximoId = obtenerProximoIdVenta();
             String numeroBoletaReal = generarNumeroBoleta(proximoId);
             venta.setNumeroBoleta(numeroBoletaReal);
 
             // Guardar venta
-            boolean ventaGuardada = ventaRepo.save(venta);
-            if (!ventaGuardada) {
+            Response resVenta = ventaRepo.save(venta);
+            if (!resVenta.isOk()) {
                 throw new RuntimeException("Error al guardar la venta en BD");
             }
 
-            // ... (Lógica de detalles y stock se mantiene igual) ...
-
-            // Como ventaRepo.save puede no devolver el ID si no es autoincrement directo en el objeto,
-            // usamos la lógica que tenías de obtenerVentaReciente o confiamos en que 'venta' se actualizó.
             Venta ventaConId = obtenerVentaReciente();
+            if (ventaConId == null) {
+                throw new RuntimeException("Error al recuperar la venta registrada");
+            }
 
             // Guardar detalles
             for (DetalleVenta detalle : detalles) {
                 detalle.setVentaId(ventaConId.getId());
                 detalleVentaRepo.save(detalle);
 
-                // Actualizar Stock
-                Producto producto = productoRepo.findById(detalle.getProductoId()).getContent();
-                producto.setCantidad(producto.getCantidad() - detalle.getCantidad());
-                productoRepo.update(producto);
+                // Actualizar Stock mediante extracción segura del Response
+                Response<Producto> resProducto = productoRepo.findById(detalle.getProductoId());
+                if (resProducto.isOk()) {
+                    Producto producto = resProducto.getContent();
+                    producto.setCantidad(producto.getCantidad() - detalle.getCantidad());
+                    productoRepo.update(producto);
+                }
             }
 
             return ventaConId.getId();
@@ -126,7 +121,8 @@ public class ServicioVentaImplementacion implements ServicioVenta {
 
     @Override
     public List<VentaCompletaDTO> listarVentasConDetalles() {
-        return ventaRepo.listarVentasConDetalles();
+        Response<List<VentaCompletaDTO>> res = ventaRepo.listarVentasConDetalles();
+        return res.isOk() ? res.getContent() : new ArrayList<>();
     }
 
     @Override
@@ -134,17 +130,14 @@ public class ServicioVentaImplementacion implements ServicioVenta {
         return false;
     }
 
-    /**
-     * Obtiene el próximo ID de venta (máximo ID actual + 1)
-     */
     private int obtenerProximoIdVenta() {
         try {
-            List<Venta> ventas = ventaRepo.findAll();
-            if (ventas.isEmpty()) {
-                return 1; // Primera venta
+            Response<List<Venta>> res = ventaRepo.findAll();
+            if (!res.isOk() || res.getContent().isEmpty()) {
+                return 1;
             }
 
-            // Encontrar el máximo ID actual
+            List<Venta> ventas = res.getContent();
             int maxId = ventas.stream()
                     .mapToInt(Venta::getId)
                     .max()
@@ -154,50 +147,43 @@ public class ServicioVentaImplementacion implements ServicioVenta {
 
         } catch (Exception e) {
             System.err.println("Error al obtener próximo ID de venta: " + e.getMessage());
-            return -1; // Fallback
+            return -1;
         }
     }
 
-    /**
-     * Valida el DNI del cliente usando Response
-     *
-    private boolean validarDNICliente(String dni) {
-        return Response.validarDNI(dni);
-    }
-    */
     @Override
     public List<Venta> obtenerVentasPorDia(String fecha) {
-        List<Venta> todasVentas = ventaRepo.findAll();
+        Response<List<Venta>> res = ventaRepo.findAll();
+        List<Venta> todasVentas = res.isOk() ? res.getContent() : new ArrayList<>();
         return filtrarVentasPorFecha(todasVentas, fecha);
     }
 
     @Override
     public List<Venta> obtenerVentasPorRango(String fechaInicio, String fechaFin) {
-        List<Venta> todasVentas = ventaRepo.findAll();
+        Response<List<Venta>> res = ventaRepo.findAll();
+        List<Venta> todasVentas = res.isOk() ? res.getContent() : new ArrayList<>();
         return filtrarVentasPorRango(todasVentas, fechaInicio, fechaFin);
     }
 
-    // obtener la venta más reciente
     private Venta obtenerVentaReciente() {
-        List<Venta> ventas = ventaRepo.findAll();
-        if (ventas.isEmpty()) {
+        Response<List<Venta>> res = ventaRepo.findAll();
+        if (!res.isOk() || res.getContent().isEmpty()) {
             return null;
         }
+        List<Venta> ventas = res.getContent();
         return ventas.get(ventas.size() - 1);
     }
 
-    // Método para generar número de boleta único
     private String generarNumeroBoleta(int ventaId) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
         String fecha = sdf.format(new Date());
         return "B" + fecha + "-" + String.format("%04d", ventaId);
     }
 
-    // Métodos para filtrar ventas por fecha
     private List<Venta> filtrarVentasPorFecha(List<Venta> ventas, String fecha) {
         List<Venta> resultado = new java.util.ArrayList<>();
         for (Venta venta : ventas) {
-            if (venta.getFecha().toString().equals(fecha)) {
+            if (venta.getFecha() != null && venta.getFecha().toString().startsWith(fecha)) {
                 resultado.add(venta);
             }
         }
@@ -207,68 +193,51 @@ public class ServicioVentaImplementacion implements ServicioVenta {
     private List<Venta> filtrarVentasPorRango(List<Venta> ventas, String fechaInicio, String fechaFin) {
         List<Venta> resultado = new java.util.ArrayList<>();
         for (Venta venta : ventas) {
-            String fechaVenta = venta.getFecha().toString();
-            if (fechaVenta.compareTo(fechaInicio) >= 0 && fechaVenta.compareTo(fechaFin) <= 0) {
-                resultado.add(venta);
+            if (venta.getFecha() != null) {
+                String fechaVenta = venta.getFecha().toString().split(" ")[0];
+                if (fechaVenta.compareTo(fechaInicio) >= 0 && fechaVenta.compareTo(fechaFin) <= 0) {
+                    resultado.add(venta);
+                }
             }
         }
         return resultado;
     }
 
-    /**
-     * Valida que el precio unitario sea válido y razonable
-     * @param precioUnitario Precio ingresado por el usuario
-     * @param productoId ID del producto para comparar con el precio original
-     * @return true si el precio es válido, false si no lo es
-     */
     private boolean validarPrecioUnitario(double precioUnitario, int productoId) {
-        // 1. Validar que el precio sea mayor que el mínimo
         if (precioUnitario < PRECIO_MINIMO) {
             System.out.println("Precio demasiado bajo: " + precioUnitario);
             return false;
         }
 
-        // 2. Validar que el precio no exceda el máximo razonable
         if (precioUnitario > PRECIO_MAXIMO) {
             System.out.println("Precio excesivamente alto: " + precioUnitario);
             return false;
         }
 
-        // 3. Obtener el producto para comparar con el precio original
-        Producto producto = productoRepo.findById(productoId).getContent();
-        if (producto != null) {
+        Response<Producto> resProducto = productoRepo.findById(productoId);
+        if (resProducto.isOk()) {
+            Producto producto = resProducto.getContent();
             double precioOriginal = producto.getPrecioVenta();
 
-            // 4. Validar que la desviación no sea excesiva (máximo 200% del precio original)
             double porcentajeDesviacion = Math.abs((precioUnitario - precioOriginal) / precioOriginal) * 100;
 
             if (porcentajeDesviacion > PORCENTAJE_DESVIACION_MAXIMA) {
                 System.out.println("Desviación de precio excesiva: " + porcentajeDesviacion + "%");
                 System.out.println("Precio original: " + precioOriginal + ", Precio ingresado: " + precioUnitario);
-                // Podrías lanzar una excepción más específica o registrar una advertencia
-                // Por ahora, solo retornamos false para rechazar el precio
                 return false;
             }
 
-            // 5. Registrar advertencia si hay una desviación significativa (más del 50%)
             if (porcentajeDesviacion > 50.0) {
                 System.out.println("ADVERTENCIA: Desviación de precio significativa: " + porcentajeDesviacion + "%");
                 System.out.println("Producto: " + producto.getNombre() + " (ID: " + productoId + ")");
                 System.out.println("Precio original: " + precioOriginal + ", Precio ingresado: " + precioUnitario);
-
-                // Aquí podrías registrar esta advertencia en un log de auditoría
                 registrarAdvertenciaPrecio(productoId, precioOriginal, precioUnitario, porcentajeDesviacion);
             }
         }
-
         return true;
     }
 
-    /**
-     * Registra una advertencia por desviación significativa de precio
-     */
     private void registrarAdvertenciaPrecio(int productoId, double precioOriginal, double precioIngresado, double porcentajeDesviacion) {
-
         System.out.println("=== ADVERTENCIA DE PRECIO ===");
         System.out.println("Producto ID: " + productoId);
         System.out.println("Precio original: " + precioOriginal);
@@ -276,68 +245,52 @@ public class ServicioVentaImplementacion implements ServicioVenta {
         System.out.println("Desviación: " + String.format("%.2f", porcentajeDesviacion) + "%");
         System.out.println("Fecha: " + new Date());
         System.out.println("=============================");
-
-
     }
 
-    /**
-     * Método más permisivo para casos especiales (descuentos, promociones, etc.)
-     * que permite override con autorización
-     */
     public boolean validarPrecioUnitarioConAutorizacion(double precioUnitario, int productoId, boolean autorizado) {
-        // Validaciones básicas
         if (precioUnitario < PRECIO_MINIMO || precioUnitario > PRECIO_MAXIMO) {
             return false;
         }
 
-        // Si está autorizado, permitir cualquier precio dentro de los límites
         if (autorizado) {
             System.out.println("Precio override autorizado para producto ID: " + productoId);
             return true;
         }
 
-        // Si no está autorizado, aplicar las validaciones normales
         return validarPrecioUnitario(precioUnitario, productoId);
     }
 
     @Override
     public BoletaVentaDTO generarBoleta(int ventaId, List<DetalleVenta> detalles) {
         try {
-            // 1. Obtener datos de la venta
-            Venta venta = ventaRepo.findById(ventaId);
-            if (venta == null) {
+            Response<Venta> ventaRes = ventaRepo.findById(ventaId);
+            if (!ventaRes.isOk()) {
                 throw new RuntimeException("Venta no encontrada con ID: " + ventaId);
             }
+            Venta venta = ventaRes.getContent();
 
-            // 2. Obtener datos del cliente
-            Cliente cliente = clienteRepo.findByDni(venta.getClienteDni());
+            Response<Cliente> clienteRes = clienteRepo.findByDni(venta.getClienteDni());
+            Cliente cliente = clienteRes.isOk() ? clienteRes.getContent() : null;
 
-            // 3. Obtener datos del vendedor
-            Response<Usuario> vendedorResponse = usuarioRepo.findUsuarioById(venta.getVendedorId());
-
+            // Se utiliza el método findById para obtener la respuesta del repositorio
+            Response<Usuario> vendedorResponse = usuarioRepo.findById(venta.getVendedorId());
             if(!vendedorResponse.isOk()){
-                vendedorResponse.internal_error("SVI.generarBoleta: Error al obtener el vendedor.");
-                return null;
+                throw new RuntimeException("SVI.generarBoleta: Error al obtener el vendedor.");
             }
 
-            // 4. Calcular montos de la boleta
             MontosCalculados montos = calcularMontosVentaCompleta(detalles);
 
-            // 5. Generar número de boleta si no existe
             if (venta.getNumeroBoleta() == null || venta.getNumeroBoleta().isEmpty()) {
                 String numeroBoleta = generarNumeroBoleta(ventaId);
                 venta.setNumeroBoleta(numeroBoleta);
             }
 
-            // 6. Actualizar venta con los montos calculados
             venta.setIgv(montos.getIgvSolo());
-            venta.setIgvAplicado(IGV_PORCENTAJE * 100); // 18%
+            venta.setIgvAplicado(IGV_PORCENTAJE * 100);
             venta.setTotalFinal(montos.getTotalConIGV());
 
-            // Persistir los cambios en la venta
             ventaRepo.update(venta);
 
-            // 7. Crear y retornar el DTO de boleta
             return new BoletaVentaDTO(
                     venta,
                     cliente,
@@ -386,13 +339,14 @@ public class ServicioVentaImplementacion implements ServicioVenta {
 
     @Override
     public double calcularGananciaTotal() {
-        return productoRepo.getGananciaTotal().getContent();
+        Response<Double> res = productoRepo.getGananciaTotal();
+        return res.isOk() ? res.getContent() : 0.0;
     }
 
     @Override
     public boolean validarProductoExiste(int productoId) {
-        Producto producto = productoRepo.findById(productoId).getContent();
-        boolean existe = (producto != null);
+        Response<Producto> prodReq = productoRepo.findById(productoId);
+        boolean existe = prodReq.isOk() && prodReq.getContent() != null;
 
         if (!existe) {
             ventaRepo.registrarProductoNoEncontrado(productoId, null, null);
@@ -408,21 +362,25 @@ public class ServicioVentaImplementacion implements ServicioVenta {
 
         try {
             int id = Integer.parseInt(criterio);
-            Producto p = servicioProducto.obtenerPorId(id).getContent();
-            if (p != null && p.getCantidad() > 0) {
-                resultado.add(p);
+            Response<Producto> pReq = servicioProducto.obtenerPorId(id);
+
+            if (pReq.isOk() && pReq.getContent() != null && pReq.getContent().getCantidad() > 0) {
+                resultado.add(pReq.getContent());
             } else {
                 ventaRepo.registrarProductoNoEncontrado(id, criterio, null);
             }
         } catch (NumberFormatException e) {
-            List<Producto> productos = servicioProducto.buscarProductos(criterio, "nombre").getContent();
-            for (Producto p : productos) {
-                if (p.getCantidad() > 0) {
-                    resultado.add(p);
+            Response<List<Producto>> listReq = servicioProducto.buscarProductos(criterio, "nombre");
+
+            if (listReq.isOk() && listReq.getContent() != null) {
+                for (Producto p : listReq.getContent()) {
+                    if (p.getCantidad() > 0) {
+                        resultado.add(p);
+                    }
                 }
             }
 
-            if (productos.isEmpty()) {
+            if (resultado.isEmpty()) {
                 ventaRepo.registrarProductoNoEncontrado(null, criterio, null);
             }
         }
@@ -432,39 +390,38 @@ public class ServicioVentaImplementacion implements ServicioVenta {
     @Override
     public List<Venta> listarVentas() {
         try {
-
-            List<Venta> ventas = ventaRepo.findAll();
-
-            System.out.println("✅ Se obtuvieron " + ventas.size() + " ventas");
+            Response<List<Venta>> res = ventaRepo.findAll();
+            List<Venta> ventas = res.isOk() ? res.getContent() : new ArrayList<>();
+            System.out.println("Se obtuvieron " + ventas.size() + " ventas");
             return ventas;
 
         } catch (Exception e) {
             System.err.println("Error en listarVentas: " + e.getMessage());
             e.printStackTrace();
-            return new ArrayList<>(); // Retorna lista vacía en caso de error
+            return new ArrayList<>();
         }
     }
 
     @Override
     public boolean eliminarVenta(int ventaId) {
         try {
-            // 1. Validar que la venta existe
-            Venta venta = ventaRepo.findById(ventaId);
-            if (venta == null) {
+            Response<Venta> vRes = ventaRepo.findById(ventaId);
+            if (!vRes.isOk()) {
                 System.out.println("Venta no encontrada con ID: " + ventaId);
                 return false;
             }
+            Venta venta = vRes.getContent();
 
             System.out.println("Eliminando venta ID: " + ventaId + " - Boleta: " + venta.getNumeroBoleta());
 
-            // 2. Obtener todos los detalles de la venta
-            List<DetalleVenta> detalles = detalleVentaRepo.findByVenta(ventaId);
+            Response<List<DetalleVenta>> detRes = detalleVentaRepo.findByVenta(ventaId);
+            List<DetalleVenta> detalles = detRes.isOk() ? detRes.getContent() : new ArrayList<>();
             System.out.println("Encontrados " + detalles.size() + " detalles para la venta ID: " + ventaId);
 
-            // 3. Revertir el stock de los productos (sumar lo que se había restado)
             for (DetalleVenta detalle : detalles) {
-                Producto producto = productoRepo.findById(detalle.getProductoId()).getContent();
-                if (producto != null) {
+                Response<Producto> prodRes = productoRepo.findById(detalle.getProductoId());
+                if (prodRes.isOk()) {
+                    Producto producto = prodRes.getContent();
                     int stockActual = producto.getCantidad();
                     int nuevoStock = stockActual + detalle.getCantidad();
 
@@ -485,17 +442,14 @@ public class ServicioVentaImplementacion implements ServicioVenta {
                 }
             }
 
-            // 4. Eliminar los detalles de venta primero (por integridad referencial)
             for (DetalleVenta detalle : detalles) {
-                boolean detalleEliminado = detalleVentaRepo.delete(detalle.getId());
+                boolean detalleEliminado = detalleVentaRepo.delete(detalle.getId()).isOk();
                 if (!detalleEliminado) {
                     System.err.println("Error al eliminar detalle ID: " + detalle.getId());
-                    // Continuamos aunque falle uno, para intentar limpiar lo máximo posible
                 }
             }
 
-            // 5. Finalmente eliminar la venta
-            boolean ventaEliminada = ventaRepo.delete(ventaId);
+            boolean ventaEliminada = ventaRepo.delete(ventaId).isOk();
 
             if (ventaEliminada) {
                 System.out.println("Venta eliminada exitosamente:");
@@ -514,6 +468,4 @@ public class ServicioVentaImplementacion implements ServicioVenta {
             return false;
         }
     }
-
-
 }

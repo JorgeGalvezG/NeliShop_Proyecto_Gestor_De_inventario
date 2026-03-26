@@ -3,20 +3,20 @@ package io.carpets.repositories;
 import io.carpets.entidades.Venta;
 import java.util.List;
 import io.carpets.DTOs.VentaCompletaDTO;
-import io.carpets.DTOs.DetalleVentaDTO;
+import io.carpets.util.Response;
 
 
 public interface VentaRepository {
     boolean save(Venta venta);
-    boolean update(Venta venta);
-    boolean delete(int id);
+    Response update(Venta venta);
+    Response delete(int id);
     Venta findById(int id);
-    List<Venta> findAll();
-    List<Venta> findByNumeroBoleta(String numeroBoleta);
-    List<VentaCompletaDTO> listarVentasConDetalles();
+    Response<List<Venta>> findAll();
+    Response<List<Venta>> findByNumeroBoleta(String numeroBoleta);
+    Response<List<VentaCompletaDTO>> listarVentasConDetalles();
 
 
 
     //  registrar productos no encontrados
-    void registrarProductoNoEncontrado(Integer idProductoSolicitado, String nombreProductoSolicitado, Integer vendedorId);
+    Response registrarProductoNoEncontrado(Integer idProductoSolicitado, String nombreProductoSolicitado, Integer vendedorId);
 }

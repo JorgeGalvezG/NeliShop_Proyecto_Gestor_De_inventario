@@ -35,30 +35,27 @@ public class LauncherActivity extends FlutterActivity {
     private static final String LOGIN = "samples.flutter.dev/Login";
     private static final String COMPRA = "samples.flutter.dev/Compra";
 
+    //inicializamos una sola vez la memoria
+    private BridgeProducto bridgeProducto;
+    private BridgeVenta bridgeVenta;
+    private BridgeMain bridgeMain;
+    private BridgeCompra bridgeCompra;
 
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
-
-        
+        //inicializmos los puentes
+        bridgeProducto = new BridgeProducto();
+        bridgeVenta = new BridgeVenta();
+        bridgeMain = new BridgeMain();
+        bridgeCompra = new BridgeCompra();
         //CANAL DE PRODUCTOS
-        /*
-        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), PRODUCT)
-                .setMethodCallHandler(
-                        (call, result) -> {
-                            BridgeProducto BP = new BridgeProducto();
-                            result.success(BP.Dirigir (call.method, (List<Object>) call.arguments ));
-                        }
-                );*/
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), PRODUCT)
                 .setMethodCallHandler((call, result) -> {
                     // Creamos un hilo secundario para no congelar la pantalla
                     new Thread(() -> {
                         try {
-                            BridgeProducto BP = new BridgeProducto();
-                            Object respuesta = BP.Dirigir(call.method, (List<Object>) call.arguments);
-
-                            // Devolvemos el resultado al hilo de la interfaz de Flutter
+                            Object respuesta = bridgeProducto.Dirigir(call.method, (List<Object>) call.arguments);
                             runOnUiThread(() -> result.success(respuesta));
                         } catch (Exception e) {
                             runOnUiThread(() -> result.error("ERROR", e.getMessage(), null));
@@ -67,23 +64,12 @@ public class LauncherActivity extends FlutterActivity {
                 });
 
         //CANAL DE VENTAS
-        /*
-        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), VENTA)
-                .setMethodCallHandler(
-                        (call, result) -> {
-                            BridgeVenta BV = new BridgeVenta();
-                            result.success(BV.Dirigir (call.method, (List<Object>) call.arguments));
-                        }
-                ); */
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), VENTA)
                 .setMethodCallHandler((call, result) -> {
                     // Creamos un hilo secundario para no congelar la pantalla
                     new Thread(() -> {
                         try {
-                            BridgeVenta BV = new BridgeVenta();
-                            Object respuesta = BV.Dirigir(call.method, (List<Object>) call.arguments);
-
-                            // Devolvemos el resultado al hilo de la interfaz de Flutter
+                            Object respuesta = bridgeVenta.Dirigir(call.method, (List<Object>) call.arguments);
                             runOnUiThread(() -> result.success(respuesta));
                         } catch (Exception e) {
                             runOnUiThread(() -> result.error("ERROR", e.getMessage(), null));
@@ -92,24 +78,12 @@ public class LauncherActivity extends FlutterActivity {
                 });
         
         //CANAL PRINCIPAL
-        /*
-        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), LOGIN)
-                .setMethodCallHandler(
-                        (call, result) -> {
-                            BridgeMain BM = new BridgeMain();
-                            result.success(BM.Dirigir (call.method, (List<Object>) call.arguments ));
-
-                        }
-                );*/
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), LOGIN)
                 .setMethodCallHandler((call, result) -> {
                     // Creamos un hilo secundario para no congelar la pantalla
                     new Thread(() -> {
                         try {
-                            BridgeMain BM = new BridgeMain();
-                            Object respuesta = BM.Dirigir(call.method, (List<Object>) call.arguments);
-
-                            // Devolvemos el resultado al hilo de la interfaz de Flutter
+                            Object respuesta = bridgeMain.Dirigir(call.method, (List<Object>) call.arguments);
                             runOnUiThread(() -> result.success(respuesta));
                         } catch (Exception e) {
                             runOnUiThread(() -> result.error("ERROR", e.getMessage(), null));
@@ -118,23 +92,12 @@ public class LauncherActivity extends FlutterActivity {
                 });
 
         //CANAL DE COMPRAS
-        /*
-        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), COMPRA)
-                .setMethodCallHandler(
-                        (call, result) -> {
-                            BridgeCompra BC = new BridgeCompra();
-                            result.success( BC.Dirigir (call.method, (List<Object>) call.arguments) );
-                        }
-                );*/
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), COMPRA)
                 .setMethodCallHandler((call, result) -> {
                     // Creamos un hilo secundario para no congelar la pantalla
                     new Thread(() -> {
                         try {
-                            BridgeCompra BC = new BridgeCompra();
-                            Object respuesta = BC.Dirigir(call.method, (List<Object>) call.arguments);
-
-                            // Devolvemos el resultado al hilo de la interfaz de Flutter
+                            Object respuesta = bridgeCompra.Dirigir(call.method, (List<Object>) call.arguments);
                             runOnUiThread(() -> result.success(respuesta));
                         } catch (Exception e) {
                             runOnUiThread(() -> result.error("ERROR", e.getMessage(), null));

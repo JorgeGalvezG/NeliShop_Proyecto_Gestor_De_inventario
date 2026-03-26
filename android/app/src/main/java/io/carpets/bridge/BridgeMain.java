@@ -27,7 +27,7 @@ public class BridgeMain {
 
     private final String login = "login";
     public Object Dirigir(String Funcion, List<Object> List) {
-        if (List.isEmpty()) {
+        if (List == null || List.isEmpty()) {
             return Redirigir(Funcion, List);
         } else if (List.size() == 1) {
             return RedirigirFunction(Funcion, List);
@@ -39,7 +39,7 @@ public class BridgeMain {
 
     private Object Redirigir(String Funcion, List<Object> List) {
         Function<Object, Object> f = VoidFunc.get(Funcion);
-        return (f != null) ? f.apply(List) : null;
+        return (f != null) ? f.apply(null) : null;
     }
 
     private Object RedirigirFunction(String Funcion, List<Object> List) {

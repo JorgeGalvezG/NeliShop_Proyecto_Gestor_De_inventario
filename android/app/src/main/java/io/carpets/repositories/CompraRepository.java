@@ -1,5 +1,6 @@
 package io.carpets.repositories;
 
+import io.carpets.DTOs.CompraCompletaDTO;
 import io.carpets.entidades.Compra;
 import io.carpets.util.Response;
 
@@ -13,8 +14,9 @@ import java.util.List;
 public interface CompraRepository {
     Response save(Compra compra);
     Response update(Compra compra);
-    Response delete(String consulta);
+    Response delete(int consulta);
     Response<Compra> findById(int id);
     Response<List<Compra>> findAll();
-    Response<List<Compra>> findByDate(Date Desde, Date Hasta);
+    Response<List<CompraCompletaDTO>> listarComprasConDetalles();
+    Response<List<Compra>> findByDate(Date desde, Date hasta);
 }

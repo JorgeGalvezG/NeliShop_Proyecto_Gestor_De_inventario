@@ -59,13 +59,10 @@ class _MainLayoutState extends State<MainLayout> {
       // Usuario normal
       _pages = [
         HomePage(userRole: widget.userRole),
-        const ProductosPage(),
         const VentasPage(),
       ];
       _navBarItems = const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: "Inicio"),
-        BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2), label: "Productos"),
         BottomNavigationBarItem(
             icon: Icon(Icons.receipt_long), label: "Ventas"),
       ];

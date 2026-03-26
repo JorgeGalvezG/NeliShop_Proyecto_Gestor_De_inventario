@@ -7,6 +7,8 @@ class Product {
   String name;
   String category;
   double price;
+  double? purchasePrice;
+
   String? imagePath; // Para la imagen
   double? salePrice; // Para promociones
   int stock;
@@ -16,6 +18,7 @@ class Product {
     required this.name,
     required this.category,
     required this.price,
+    this.purchasePrice,
     this.imagePath,
     this.salePrice,
     this.stock = 0, // Default 0
@@ -36,6 +39,7 @@ class Product {
         category: mapa['categoriaNombre'].toString() ?? 'General',
         //manejo seguro de numeros (aveces manda int aveces manda double)
         price: (mapa['precioVenta'] ?? 0).toDouble(),
+        purchasePrice: (mapa['precioCompra']?? 0).toDouble(),
         //price: Lista[i]['precio']?.toDouble() ?? 0.0,
         imagePath: mapa['imagen']?.toString(),
         stock: mapa['stock']?.toInt() ?? 0,
@@ -52,13 +56,12 @@ class Product {
   //constructor inteligente
   factory Product.fromJson(JsonMap json){
   return Product(
-
-
     id: json['id'].toString(),
     name: json['nombre']?.toString() ?? 'Sin Nombre',
     category: json['categoriaNombre'].toString() ?? 'General',
     //manejo seguro de numeros (aveces manda int aveces manda double)
     price: (json['precioVenta'] ?? 0).toDouble(),
+    purchasePrice: (json['precioCompra'] ?? 0).toDouble(),
     //price: json['precio']?.toDouble() ?? 0.0,
     imagePath: json['imagen']?.toString(),
     stock: json['stock']?.toInt() ?? 0,

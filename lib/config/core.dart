@@ -1,59 +1,93 @@
+import 'package:flutter/foundation.dart';
+
 /// Define un mapa JSON estándar: String -> dynamic
 /// Úsalo cuando envíes o recibas objetos individuales.
 typedef JsonMap = Map<String, dynamic>;
 
-/// Define una lista de mapas: Útil para listas de productos o ventas.
-typedef JsonList = List<dynamic>;
-//typedef ListOfMaps = List<Map<String, dynamic>>;
+/// Define una lista de mapas: útil para listas de productos o ventas.
+typedef JsonList = List<Map<String, dynamic>>;
 
-/// Esta clase existe por si el mapa de MethodChannels se recibe como nulo.
-/// Además, apoya con el log.
+/// Clase central para estandarizar las respuestas del backend (MethodChannels).
 class BridgeResponse {
-  String? status;
-  String? mensaje;
-  dynamic data;
+  //  status no-nullable y todas las propiedades finales
+  final String status;
+  final String? mensaje;
+  final dynamic data;
 
-  static final String EXITO = 'ok';
-  static final String INTERNAL_ERROR = 'internal_error';
-  static final String MESSAGE_ERROR = 'error';
+  static const String EXITO          = 'ok';
+  static const String INTERNAL_ERROR = 'internal_error';
+  static const String MESSAGE_ERROR  = 'error';
 
-  BridgeResponse({
-    this.status,
+  const BridgeResponse({
+    required this.status,
     this.mensaje,
-    this.data
+    this.data,
   });
 
-  //Si la respuesta es la esperada, usa esta función.
-  BridgeResponse Exito(){
-    return new BridgeResponse(status: EXITO);
-  }
-
-  //Si la respuesta es la esperada y hay elementos que retornar, usa esta función.
-  BridgeResponse ExitoWithData(dynamic Data){
-    return new BridgeResponse(status: EXITO, data: Data);
-  }
-
-  //Si la respuesta contuvo errores que quieras imprimir en consola o
-  // que quieras identificar después, usa esta función.
-  BridgeResponse Internal_Error(String mensaje){
-    print(mensaje);
-    return new BridgeResponse(status: INTERNAL_ERROR, mensaje: mensaje);
-  }
-
-  //Si el error se mostrará en la pantalla del usuario, usa este código.
-  BridgeResponse Message_Error(String mensaje){
-    return new BridgeResponse(status: MESSAGE_ERROR, mensaje: mensaje);
-  }
-
-  // Un "getter" para saber rápido si todo salió bien
+  /// Getter para evaluar rápidamente el éxito de la transacción.
   bool get isSuccess => status == EXITO;
 
-  // Fábrica inteligente: Convierte lo que llegue de Java en una respuesta segura
+  /// Fábrica inteligente: extrae status, mensaje y contenido enviado por Java.
   factory BridgeResponse.fromMap(Map<dynamic, dynamic> map) {
     return BridgeResponse(
-      status: map['status']?.toString() ?? 'internal_error',
+      status:  map['status']?.toString() ?? INTERNAL_ERROR,
       mensaje: map['mensaje']?.toString(),
-      data: map['Content'],
+      data:    map['Content'] ?? map['data'],
     );
   }
+
+  // ===========================================================================
+  // Constructores con nombre estáticos (patrón idiomático Dart)
+  // Reemplazan los métodos de instancia con PascalCase que eran inutilizables.
+  // ===========================================================================
+
+  /// Respuesta de éxito sin datos.
+  static BridgeResponse exito() {
+    return const BridgeResponse(status: EXITO);
+  }
+
+  /// Respuesta de éxito con datos adjuntos.
+  static BridgeResponse exitoConDatos(dynamic dataPayload) {
+    return BridgeResponse(status: EXITO, data: dataPayload);
+  }
+
+  /// Error interno inesperado (bug, excepción no controlada, etc.).
+  static BridgeResponse errorInterno(String msg) {
+    debugPrint("❌ Error Interno (Bridge): $msg"); // debugPrint
+    return BridgeResponse(status: INTERNAL_ERROR, mensaje: msg);
+  }
+
+  /// Error de negocio con mensaje para mostrar al usuario.
+  static BridgeResponse errorMensaje(String msg) {
+    return BridgeResponse(status: MESSAGE_ERROR, mensaje: msg);
+  }
+
+  List<JsonMap> get dataList {
+    if (data is List) {
+      return List<JsonMap>.from(data as List);
+    }
+    return [];
+  }
+
+  // ===========================================================================
+  // MÉTODOS DE COMPATIBILIDAD (Legacy) — DEPRECADOS
+  // Se mantienen temporalmente para no romper archivos existentes.
+  // Migrar a los métodos estáticos de arriba y eliminar en la próxima versión.
+  // ===========================================================================
+
+  @Deprecated('Usar BridgeResponse.exito() en su lugar')
+  static BridgeResponse Exito() => exito();
+
+  @Deprecated('Usar BridgeResponse.exitoConDatos(data) en su lugar')
+  static BridgeResponse ExitoWithData(dynamic dataPayload) => exitoConDatos(dataPayload);
+
+  @Deprecated('Usar BridgeResponse.errorInterno(msg) en su lugar')
+  static BridgeResponse Internal_Error(String msg) => errorInterno(msg);
+
+  @Deprecated('Usar BridgeResponse.errorMensaje(msg) en su lugar')
+  static BridgeResponse Message_Error(String msg) => errorMensaje(msg);
+
+  @override
+  String toString() =>
+      'BridgeResponse(status: $status, mensaje: $mensaje, data: $data)';
 }
