@@ -10,9 +10,9 @@ import java.util.List;
     define los métodos CRUD para interactuar con la base de datos.
 */
 public interface DetalleVentaRepository {
-    boolean save(DetalleVenta detalle);
-    boolean update(DetalleVenta detalle);
-    boolean delete(int id);
-    DetalleVenta findById(int id);
+    Response save(DetalleVenta detalle);
+    Response update(DetalleVenta detalle);
+    Response delete(int id);
+    Response<DetalleVenta> findById(int id);
     Response<List<DetalleVenta>> findByVenta(int ventaId);
 }

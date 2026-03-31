@@ -7,6 +7,8 @@ import io.carpets.DTOs.MontosCalculados;
 import io.carpets.DTOs.BoletaVentaDTO;
 import io.carpets.DTOs.VentaCompletaDTO;
 import io.carpets.DTOs.DetalleVentaDTO;
+import io.carpets.util.Response;
+
 import java.util.List;
 
 public interface ServicioVenta {
@@ -15,7 +17,7 @@ public interface ServicioVenta {
     List<Venta> obtenerVentasPorRango(String fechaInicio, String fechaFin);
     List<Producto> buscarProductoEnVentaPorIdONombre(String criterio);
     List<VentaCompletaDTO> listarVentasConDetalles();
-    boolean eliminarDetalleVenta(int detalleId);
+    Response eliminarDetalleVenta(int detalleId);
     boolean validarProductoExiste(int productoId);
 
     // Métodos para cálculos
@@ -23,12 +25,12 @@ public interface ServicioVenta {
     MontosCalculados calcularMontosVentaCompleta(List<DetalleVenta> detalles);
     double calcularTotalVenta(List<DetalleVenta> detalles);
 
-    // ⭐️ NUEVO: Calcular ganancia total (Venta - Compra)
+    // Calcular ganancia total (Venta - Compra)
     double calcularGananciaTotal();
 
     BoletaVentaDTO generarBoleta(int ventaId, List<DetalleVenta> detalles);
 
     List<Venta> listarVentas();
 
-    boolean eliminarVenta(int ventaId);
+    Response eliminarVenta(int ventaId);
 }

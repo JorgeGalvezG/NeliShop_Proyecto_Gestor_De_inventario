@@ -22,12 +22,7 @@ import java.util.Map;
 
 public class ServicioCompraImplementacion implements ServicioCompra {
 
-    final private CompraRepository compraRepo = new CompraRepositoryImplementacion() {
-        @Override
-        public Response delete(int consulta) {
-            return null;
-        }
-    };
+    final private CompraRepository compraRepo = new CompraRepositoryImplementacion();
     final private DetalleCompraRepository detalleCompraRepo = new DetalleCompraRepositoryImplementacion();
     final private ProductoRepository productoRepo = new ProductoRepositoryImplementacion();
     final private ServicioProducto servicioProducto = new ServicioProductoImplementacion();
@@ -112,12 +107,20 @@ public class ServicioCompraImplementacion implements ServicioCompra {
             return response;
         }
     }
-
     @Override
     public DetalleCompra agregarProductoExistenteACompra(int productoId, int cantidad) {
         try {
-            Producto producto = servicioProducto.obtenerPorId(productoId);
-            if (producto == null) throw new RuntimeException("Producto no encontrado con ID: " + productoId);
+            // Extraemos el Response primero
+            Response<Producto> prodResponse = servicioProducto.obtenerPorId(productoId);
+
+            // Validamos que sea exitoso y traiga contenido
+            if (!prodResponse.isOk() || prodResponse.getContent() == null) {
+                throw new RuntimeException("Producto no encontrado con ID: " + productoId);
+            }
+
+            // Recién aquí sacamos el Producto
+            Producto producto = prodResponse.getContent();
+
             if (cantidad < CANTIDAD_MINIMA || cantidad > CANTIDAD_MAXIMA) throw new RuntimeException("Cantidad fuera de rango válido");
 
             double precioCompra = producto.getPrecioCompra();

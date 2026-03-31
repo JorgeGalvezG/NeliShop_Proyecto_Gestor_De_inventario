@@ -25,7 +25,7 @@ public class VentaRepositoryImplementacion implements VentaRepository {
      * Registra una nueva venta en la base de datos.
      */
     @Override
-    public boolean save(Venta venta) {
+    public Response save(Venta venta) {
         Response response = new Response();
         // Integrado id_cliente de la rama entrante
         String sql = "INSERT INTO venta (numero_boleta, fecha, monto, descripcion, id_vendedor, id_cliente) VALUES (?, ?, ?, ?, ?, ?)";
@@ -116,7 +116,7 @@ public class VentaRepositoryImplementacion implements VentaRepository {
      * Encuentra una venta usando su ID.
      */
     @Override
-    public Venta findById(int id) {
+    public Response<Venta> findById(int id) {
         Response<Venta> response = new Response<>();
         String sql = "SELECT * FROM venta WHERE id_venta=?";
 

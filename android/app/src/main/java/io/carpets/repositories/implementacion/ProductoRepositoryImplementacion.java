@@ -572,8 +572,8 @@ public class ProductoRepositoryImplementacion implements ProductoRepository {
      * @return Response indicando si existe (exito) o no existe (error)
      */
     @Override
-    public Response existeIdById(int id) {
-        Response response = new Response();
+    public Response<Boolean> existeIdById(int id) {
+        Response<Boolean> response = new Response<>();
 
         // Validación de entrada
         if (id <= 0) {

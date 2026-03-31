@@ -7,10 +7,10 @@ import io.carpets.util.Response;
 
 
 public interface VentaRepository {
-    boolean save(Venta venta);
+    Response save(Venta venta);
     Response update(Venta venta);
     Response delete(int id);
-    Venta findById(int id);
+    Response<Venta> findById(int id);
     Response<List<Venta>> findAll();
     Response<List<Venta>> findByNumeroBoleta(String numeroBoleta);
     Response<List<VentaCompletaDTO>> listarVentasConDetalles();

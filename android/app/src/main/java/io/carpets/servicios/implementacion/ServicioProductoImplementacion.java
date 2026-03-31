@@ -97,7 +97,7 @@ public class    ServicioProductoImplementacion implements ServicioProducto {
 
         if(!porCategoria.isOk()){
             porNombre.internal_error("SPI.buscarProductos: Error al filtrar productos por categoría.");
-            return porNombre;
+            return porCategoria;
         }
 
         if (tipo == null || "all".equalsIgnoreCase(tipo)) {

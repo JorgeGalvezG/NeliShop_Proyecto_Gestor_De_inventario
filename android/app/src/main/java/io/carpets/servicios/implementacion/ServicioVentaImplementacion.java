@@ -126,8 +126,8 @@ public class ServicioVentaImplementacion implements ServicioVenta {
     }
 
     @Override
-    public boolean eliminarDetalleVenta(int detalleId) {
-        return false;
+    public Response eliminarDetalleVenta(int detalleId) {
+        return null;
     }
 
     private int obtenerProximoIdVenta() {
@@ -403,12 +403,13 @@ public class ServicioVentaImplementacion implements ServicioVenta {
     }
 
     @Override
-    public boolean eliminarVenta(int ventaId) {
+    public Response eliminarVenta(int ventaId) {
+        Response finalResponse = new Response();
         try {
             Response<Venta> vRes = ventaRepo.findById(ventaId);
             if (!vRes.isOk()) {
-                System.out.println("Venta no encontrada con ID: " + ventaId);
-                return false;
+                finalResponse.internal_error("Venta no encontrada con ID: " + ventaId);
+                return finalResponse;
             }
             Venta venta = vRes.getContent();
 
@@ -416,7 +417,6 @@ public class ServicioVentaImplementacion implements ServicioVenta {
 
             Response<List<DetalleVenta>> detRes = detalleVentaRepo.findByVenta(ventaId);
             List<DetalleVenta> detalles = detRes.isOk() ? detRes.getContent() : new ArrayList<>();
-            System.out.println("Encontrados " + detalles.size() + " detalles para la venta ID: " + ventaId);
 
             for (DetalleVenta detalle : detalles) {
                 Response<Producto> prodRes = productoRepo.findById(detalle.getProductoId());
@@ -425,20 +425,13 @@ public class ServicioVentaImplementacion implements ServicioVenta {
                     int stockActual = producto.getCantidad();
                     int nuevoStock = stockActual + detalle.getCantidad();
 
-                    System.out.println("Revirtiendo stock producto ID: " + producto.getId() +
-                            " - Stock actual: " + stockActual +
-                            " + Cantidad revertida: " + detalle.getCantidad() +
-                            " = Nuevo stock: " + nuevoStock);
-
                     producto.setCantidad(nuevoStock);
                     boolean stockActualizado = productoRepo.update(producto).isOk();
 
                     if (!stockActualizado) {
-                        System.err.println("Error al revertir stock del producto ID: " + producto.getId());
-                        return false;
+                        finalResponse.internal_error("Error al revertir stock del producto ID: " + producto.getId());
+                        return finalResponse;
                     }
-                } else {
-                    System.err.println("Producto no encontrado ID: " + detalle.getProductoId() + " - continuando...");
                 }
             }
 
@@ -449,23 +442,21 @@ public class ServicioVentaImplementacion implements ServicioVenta {
                 }
             }
 
-            boolean ventaEliminada = ventaRepo.delete(ventaId).isOk();
+            Response ventaEliminadaRes = ventaRepo.delete(ventaId);
 
-            if (ventaEliminada) {
-                System.out.println("Venta eliminada exitosamente:");
-                System.out.println("   - ID: " + ventaId);
-                System.out.println("   - Número de boleta: " + venta.getNumeroBoleta());
-                System.out.println("   - Stock revertido para " + detalles.size() + " productos");
+            if (ventaEliminadaRes.isOk()) {
+                finalResponse.exito();
+                System.out.println("Venta eliminada exitosamente. Stock revertido para " + detalles.size() + " productos");
             } else {
-                System.err.println("Error al eliminar la venta de la base de datos");
+                finalResponse.internal_error("Error al eliminar la venta de la base de datos");
             }
 
-            return ventaEliminada;
+            return finalResponse;
 
         } catch (Exception e) {
-            System.err.println("Error en eliminarVenta: " + e.getMessage());
+            finalResponse.internal_error("Error en eliminarVenta: " + e.getMessage());
             e.printStackTrace();
-            return false;
+            return finalResponse;
         }
     }
 }

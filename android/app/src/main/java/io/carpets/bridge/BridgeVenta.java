@@ -1,6 +1,8 @@
 package io.carpets.bridge;
 
 import io.carpets.flutterbridge.MethodChannelHandler;
+import io.carpets.util.Response;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,10 +21,9 @@ public class BridgeVenta {
     private final String generarBoleta = "genBoletaVenta";
     private final String calcularMontos = "calcMontos";
 
-    HashMap<String, Function<Object, Object>> VoidFunc = new HashMap<>();
-    HashMap<String, Function<Object, Object>> Funct = new HashMap<>();
-    HashMap<String, BiFunction<Object, Object, Object>> Bifunc = new HashMap<>();
-
+    HashMap<String, Function<Object, Response>> VoidFunc = new HashMap<>();
+    HashMap<String, Function<Object, Response>> Funct = new HashMap<>();
+    HashMap<String, BiFunction<Object, Object, Response>> Bifunc = new HashMap<>();
     MethodChannelHandler MCH;
 
     public BridgeVenta() {
@@ -32,27 +33,40 @@ public class BridgeVenta {
 
     public Object Dirigir(String Funcion, List<Object> List) {
         if (List == null || List.isEmpty()) {
-            return Redirigir(Funcion, List);
+            return Redirigir(Funcion, null).getMap();
         } else if (List.size() == 1) {
-            return RedirigirFunction(Funcion, List);
+            return RedirigirFunction(Funcion, List).getMap();
+        } else if (List.size() == 2) {
+            return RedirigirBifunction(Funcion, List).getMap();
         } else {
-            return RedirigirBifunction(Funcion, List);
+            Response error = new Response();
+            error.internal_error("Error de Puente Venta: demasiados argumentos");
+            return error.getMap();
         }
     }
 
-    private Object Redirigir(String Funcion, List<Object> List) {
-        Function<Object, Object> f = VoidFunc.get(Funcion);
-        return (f != null) ? f.apply(null) : null;
+    private Response Redirigir(String Funcion, List<Object> List) {
+        Function<Object, Response> f = VoidFunc.get(Funcion);
+        if (f != null) return f.apply(null);
+        return functionNotFound(Funcion);
     }
 
-    private Object RedirigirFunction(String Funcion, List<Object> List) {
-        Function<Object, Object> f = Funct.get(Funcion);
-        return (f != null) ? f.apply(List.get(0)) : null;
+    private Response RedirigirFunction(String Funcion, List<Object> List) {
+        Function<Object, Response> f = Funct.get(Funcion);
+        if (f != null) return f.apply(List.get(0));
+        return functionNotFound(Funcion);
     }
 
-    private Object RedirigirBifunction(String Funcion, List<Object> List) {
-        BiFunction<Object, Object, Object> f = Bifunc.get(Funcion);
-        return (f != null) ? f.apply(List.get(0), List.get(1)) : null;
+    private Response RedirigirBifunction(String Funcion, List<Object> List) {
+        BiFunction<Object, Object, Response> f = Bifunc.get(Funcion);
+        if (f != null) return f.apply(List.get(0), List.get(1));
+        return functionNotFound(Funcion);
+    }
+
+    private Response functionNotFound(String funcionName) {
+        Response res = new Response();
+        res.internal_error("Función de Venta no registrada en Java: " + funcionName);
+        return res;
     }
 
     void CargarFunciones() {
@@ -106,9 +120,8 @@ public class BridgeVenta {
 
             } catch (Exception e) {
                 e.printStackTrace();
-                Map<String, Object> error = new HashMap<>();
-                error.put("status", "error");
-                error.put("mensaje", "Error en Bridge Java: " + e.getMessage());
+                Response error = new Response();
+                error.internal_error("Error en Bridge Java: " + e.getMessage());
                 return error;
             }
         });

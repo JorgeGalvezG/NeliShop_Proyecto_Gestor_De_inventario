@@ -54,23 +54,31 @@ public class Response<T>{
      * @return El estado de la respuesta: Ok, InternalError, MessageError.
      */
     public String getStatus(){
-        return response.get("status").toString();
+
+        Object status = response.get("status");
+        return status != null ? status.toString() : "undefined";
     }
 
     /**
      * @return El contenido de la respuesta. Pueden ser listas, objetos, etc.
      */
     public boolean isOk(){
-        return response.get("status").toString().equals(EXITO);
-    }
+        return EXITO.equals(response.get("status"));    }
 
     /**
      * @return El contenido de la respuesta. Pueden ser listas, objetos, etc.
      */
+    @SuppressWarnings("unchecked")
     public T getContent(){
         return (T) response.get("Content");
     }
-
+    /* Recupera el mensaje de error almacenado.
+     * @return El mensaje de error o null si no hay ninguno.
+     */
+    public String getMensaje() {
+        Object mensaje = response.get("mensaje");
+        return mensaje != null ? mensaje.toString() : "";
+    }
     /**
      * @return Retorna el mapa almacenado. Usado para enviarlo por el MethodChannels.
      */

@@ -13,7 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public abstract class CompraRepositoryImplementacion implements CompraRepository {
+public class CompraRepositoryImplementacion implements CompraRepository {
 
     /**
      * Registra una compra dentro de la base de datos.
